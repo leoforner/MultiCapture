@@ -1,0 +1,3 @@
+com.example.multicapture
+string app_name
+style Theme_MultiCapture

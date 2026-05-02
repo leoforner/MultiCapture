@@ -12,21 +12,21 @@
 9-->INJECTED
 10
 11    <uses-feature android:name="android.hardware.camera" />
-11-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:4:5-60
-11-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:4:19-57
+11-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:4:5-60
+11-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:4:19-57
 12    <uses-feature android:name="android.hardware.camera.autofocus" />
-12-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:5:5-70
-12-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:5:19-67
+12-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:5:5-70
+12-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:5:19-67
 13    <uses-feature android:name="android.hardware.microphone" />
-13-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:6:5-64
-13-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:6:19-61
+13-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:6:5-64
+13-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:6:19-61
 14
 15    <uses-permission android:name="android.permission.CAMERA" />
-15-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:8:5-65
-15-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:8:22-62
+15-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:8:5-65
+15-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:8:22-62
 16    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-16-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:9:5-71
-16-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:9:22-68
+16-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:9:5-71
+16-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:9:22-68
 17    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 17-->[com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:31:5-82
 17-->[com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:31:22-79
@@ -79,40 +79,40 @@
 40-->[androidx.core:core:1.13.1] /home/leo/.gradle/caches/9.4.1/transforms/ef797441fa6d1aae116783abf709e357/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
 41
 42    <application
-42-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:11:5-26:19
+42-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:11:5-26:19
 43        android:allowBackup="true"
-43-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:12:9-35
+43-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:12:9-35
 44        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
 44-->[androidx.core:core:1.13.1] /home/leo/.gradle/caches/9.4.1/transforms/ef797441fa6d1aae116783abf709e357/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
 45        android:debuggable="true"
 46        android:extractNativeLibs="false"
 46-->INJECTED
 47        android:icon="@android:drawable/sym_def_app_icon"
-47-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:13:9-58
+47-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:13:9-58
 48        android:label="@string/app_name"
-48-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:14:9-41
+48-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:14:9-41
 49        android:supportsRtl="true"
-49-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:15:9-35
+49-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:15:9-35
 50        android:testOnly="true"
 51        android:theme="@style/Theme.MultiCapture" >
-51-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:16:9-50
+51-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:16:9-50
 52        <activity
-52-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:17:9-25:20
+52-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:17:9-25:20
 53            android:name="com.example.multicapture.MainActivity"
-53-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:18:13-41
+53-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:18:13-41
 54            android:exported="true"
-54-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:19:13-36
+54-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:19:13-36
 55            android:theme="@style/Theme.MultiCapture" >
-55-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:20:13-54
+55-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:20:13-54
 56            <intent-filter>
-56-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:21:13-24:29
+56-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:21:13-24:29
 57                <action android:name="android.intent.action.MAIN" />
-57-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:22:17-69
-57-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:22:25-66
+57-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:22:17-69
+57-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:22:25-66
 58
 59                <category android:name="android.intent.category.LAUNCHER" />
-59-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:23:17-77
-59-->/opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:23:27-74
+59-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:23:17-77
+59-->/opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:23:27-74
 60            </intent-filter>
 61        </activity>
 62

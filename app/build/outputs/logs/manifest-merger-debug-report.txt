@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:2:1-28:12
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:2:1-28:12
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:2:1-28:12
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:2:1-28:12
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:2:1-28:12
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:2:1-28:12
 MERGED from [androidx.navigation:navigation-common:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/fe76e3acaca2ab7e5ed44fc4e386d210/transformed/navigation-common-2.7.7/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/2cd83d655cbe5314931dc7b3aed6547f/transformed/navigation-runtime-2.7.7/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-common-ktx:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/cc4d11b513787cf3aca3cc5c842ae50d/transformed/navigation-common-ktx-2.7.7/AndroidManifest.xml:2:1-7:12
@@ -106,40 +106,40 @@ MERGED from [androidx.documentfile:documentfile:1.0.0] /home/leo/.gradle/caches/
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/leo/.gradle/caches/9.4.1/transforms/2884efa00cbfde7d1536bf33638e1f98/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.print:print:1.0.0] /home/leo/.gradle/caches/9.4.1/transforms/e2ddfdc083c6b6c177cbaf5519beefd5/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
 	package
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 	android:versionName
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 	android:versionCode
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 	xmlns:android
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:2:11-69
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:2:11-69
 uses-feature#android.hardware.camera
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:4:5-60
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:4:5-60
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:4:19-57
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:4:19-57
 uses-feature#android.hardware.camera.autofocus
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:5:5-70
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:5:5-70
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:5:19-67
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:5:19-67
 uses-feature#android.hardware.microphone
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:6:5-64
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:6:5-64
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:6:19-61
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:6:19-61
 uses-permission#android.permission.CAMERA
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:8:5-65
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:8:5-65
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:29:5-65
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:29:5-65
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:8:22-62
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:8:22-62
 uses-permission#android.permission.RECORD_AUDIO
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:9:5-71
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:9:5-71
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:30:5-71
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:30:5-71
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:9:22-68
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:9:22-68
 application
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:11:5-26:19
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:11:5-26:19
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:11:5-26:19
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:11:5-26:19
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:41:5-42:19
 MERGED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:41:5-42:19
 MERGED from [androidx.camera:camera-extensions:1.5.3] /home/leo/.gradle/caches/9.4.1/transforms/ccecdd0ed27be079ff0c6238d5a9acd2/transformed/camera-extensions-1.5.3/AndroidManifest.xml:28:5-32:19
@@ -163,41 +163,41 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/leo/.gradle/caches/9.
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/leo/.gradle/caches/9.4.1/transforms/ce71eb2e6c665c78c42cf68957bf4c43/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/leo/.gradle/caches/9.4.1/transforms/ce71eb2e6c665c78c42cf68957bf4c43/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
 	android:extractNativeLibs
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] /home/leo/.gradle/caches/9.4.1/transforms/ef797441fa6d1aae116783abf709e357/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:15:9-35
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:15:9-35
 	android:label
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:14:9-41
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:14:9-41
 	android:icon
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:13:9-58
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:13:9-58
 	android:allowBackup
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:12:9-35
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:12:9-35
 	android:theme
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:16:9-50
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:16:9-50
 activity#com.example.multicapture.MainActivity
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:17:9-25:20
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:17:9-25:20
 	android:exported
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:19:13-36
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:19:13-36
 	android:theme
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:20:13-54
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:20:13-54
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:18:13-41
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:18:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:21:13-24:29
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:21:13-24:29
 action#android.intent.action.MAIN
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:22:17-69
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:22:17-69
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:22:25-66
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:22:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:23:17-77
+ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:23:17-77
 	android:name
-		ADDED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml:23:27-74
+		ADDED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml:23:27-74
 uses-sdk
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
-INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
+INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 MERGED from [androidx.navigation:navigation-common:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/fe76e3acaca2ab7e5ed44fc4e386d210/transformed/navigation-common-2.7.7/AndroidManifest.xml:20:5-44
 MERGED from [androidx.navigation:navigation-common:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/fe76e3acaca2ab7e5ed44fc4e386d210/transformed/navigation-common-2.7.7/AndroidManifest.xml:20:5-44
 MERGED from [androidx.navigation:navigation-runtime:2.7.7] /home/leo/.gradle/caches/9.4.1/transforms/2cd83d655cbe5314931dc7b3aed6547f/transformed/navigation-runtime-2.7.7/AndroidManifest.xml:20:5-44
@@ -401,9 +401,9 @@ MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/l
 MERGED from [androidx.print:print:1.0.0] /home/leo/.gradle/caches/9.4.1/transforms/e2ddfdc083c6b6c177cbaf5519beefd5/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.print:print:1.0.0] /home/leo/.gradle/caches/9.4.1/transforms/e2ddfdc083c6b6c177cbaf5519beefd5/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
 	android:targetSdkVersion
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from /opt/projetos/git/retorno/app/src/main/AndroidManifest.xml
+		INJECTED from /opt/projetos/git/MultiCapture/app/src/main/AndroidManifest.xml
 uses-permission#android.permission.MANAGE_EXTERNAL_STORAGE
 ADDED from [com.herohan:UVCAndroid:1.0.11] /home/leo/.gradle/caches/9.4.1/transforms/9d502f99ea9faebfc1bdb08dc79198f2/transformed/UVCAndroid-1.0.11/AndroidManifest.xml:31:5-82
 	android:name
