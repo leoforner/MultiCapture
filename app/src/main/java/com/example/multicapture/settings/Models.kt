@@ -1,0 +1,44 @@
+package com.example.multicapture.settings
+
+enum class AudioFormatOption(val displayName: String, val extension: String, val mimeType: String) {
+    AAC("AAC (.m4a)", ".m4a", "audio/mp4"),
+    AMR_NB("AMR-NB (.amr)", ".amr", "audio/amr"),
+    AMR_WB("AMR-WB (.awb)", ".awb", "audio/amr-wb"),
+    OPUS("Opus (.webm)", ".webm", "audio/ogg"),
+    VORBIS("Vorbis (.webm)", ".webm", "audio/webm"),
+    WAV("WAV (PCM Não Comprimido)", ".wav", "audio/wav")
+}
+
+enum class VideoQualityOption(val displayName: String) {
+    UHD_4K("4K (UHD)"),
+    FHD_1080P("1080p (FHD)"),
+    HD_720P("720p (HD)"),
+    SD_480P("480p (SD)")
+}
+
+enum class VideoCodecOption(val displayName: String) {
+    H264("H.264 / AVC"),
+    H265("H.265 / HEVC")
+}
+
+enum class CameraLensOption(val displayName: String) {
+    FRONT("Frontal"),
+    BACK("Traseira")
+}
+
+enum class CaptureMode(val displayName: String) {
+    LOCAL_RECORD("Gravação Local"),
+    STREAMING("Transmissão (Stream)")
+}
+
+enum class LocalRecordType(val displayName: String) {
+    AUDIO_AND_VIDEO("Áudio e Vídeo"),
+    AUDIO_ONLY("Apenas Áudio"),
+    VIDEO_ONLY("Apenas Vídeo")
+}
+
+enum class StreamType(val displayName: String) {
+    AUDIO_AND_VIDEO("Áudio e Vídeo"),
+    AUDIO_ONLY("Apenas Áudio"),
+    VIDEO_ONLY("Apenas Vídeo")
+}
