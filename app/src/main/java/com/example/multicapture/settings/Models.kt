@@ -42,3 +42,21 @@ enum class StreamType(val displayName: String) {
     AUDIO_ONLY("Apenas Áudio"),
     VIDEO_ONLY("Apenas Vídeo")
 }
+
+enum class StreamMode(val displayName: String) {
+    UNIFIED("Unificado (1 URL)"),
+    SEPARATED_AUDIO("Áudio Separado (2 URLs)"),
+    MULTI_CAMERA("Multi-Câmera Separada (2 URLs Vídeo + Áudio)")
+}
+
+enum class DualCameraMode(val displayName: String) {
+    SINGLE("Lente Única"),
+    PIP("Dual Camera (PiP)")
+}
+
+enum class PiPPosition(val displayName: String) {
+    TOP_RIGHT("Canto Superior Direito"),
+    TOP_LEFT("Canto Superior Esquerdo"),
+    BOTTOM_RIGHT("Canto Inferior Direito"),
+    BOTTOM_LEFT("Canto Inferior Esquerdo")
+}

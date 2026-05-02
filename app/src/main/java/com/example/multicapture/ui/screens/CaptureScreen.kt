@@ -28,6 +28,7 @@ import com.example.multicapture.capture.StreamManager
 import com.example.multicapture.chat.ChatWebSocketClient
 import com.example.multicapture.settings.CaptureMode
 import com.example.multicapture.settings.SettingsViewModel
+import com.example.multicapture.ui.HUDOverlay
 import com.pedro.library.view.OpenGlView
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,6 +199,15 @@ fun CaptureScreen(
                     )
                 }
 
+                // HUD Overlay
+                HUDOverlay(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    batteryLevel = 100, // TODO: Implement real battery monitoring
+                    isStreamHealthy = true, // TODO: Implement real stream health
+                    bitrateMbps = 0.0f, // TODO: Implement real bitrate
+                    sessionTime = "00:00:00" // TODO: Implement real session timer
+                )
+
                 // Macros
                 if (enableMacros) {
                     Column(
@@ -229,6 +239,12 @@ fun CaptureScreen(
                     verticalArrangement = Arrangement.Bottom,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    val isRecordingOrStreaming = if (captureMode == CaptureMode.LOCAL_RECORD) isRecordingLocal else isStreaming
+                    val buttonShape by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (isRecordingOrStreaming) 8.dp else 50.dp,
+                        label = "buttonShape"
+                    )
+                    
                     Button(
                         onClick = {
                             if (captureMode == CaptureMode.LOCAL_RECORD) {
@@ -255,17 +271,13 @@ fun CaptureScreen(
                                 }
                             }
                         },
+                        shape = RoundedCornerShape(buttonShape),
+                        modifier = Modifier.size(80.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isActionActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            containerColor = if (isRecordingOrStreaming) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text(
-                            text = if (captureMode == CaptureMode.LOCAL_RECORD) {
-                                if (isRecordingLocal) "Parar Gravação" else "Gravar Local"
-                            } else {
-                                if (isStreaming) "Parar Transmissão" else "Iniciar Stream"
-                            }
-                        )
+                        // Empty inside, the shape and color communicate the state
                     }
                 }
             }

@@ -56,6 +56,16 @@ class VideoRecorderManager(private val context: Context) {
 
             try {
                 cameraProvider.unbindAll()
+                
+                // Concurrent Camera Check
+                val hasConcurrent = cameraProvider.availableConcurrentCameraSelectors.isNotEmpty()
+                if (hasConcurrent) {
+                    // Try to bind concurrent front and back if required by settings
+                    // val concurrentSelectors = cameraProvider.availableConcurrentCameraSelectors[0]
+                    // cameraProvider.bindToLifecycle(listOf(SingleCameraConfig(...), SingleCameraConfig(...)))
+                    // We will fallback to single for now to maintain stability in the demo
+                }
+                
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner, cameraSelector, preview, videoCapture
                 )

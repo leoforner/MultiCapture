@@ -56,6 +56,13 @@ fun SettingsScreen(
     val cameraLens by viewModel.cameraLens.collectAsState()
     val outputDirUri by viewModel.outputDirUri.collectAsState()
 
+    var streamMode by remember { mutableStateOf(StreamMode.UNIFIED) }
+    var dualCameraMode by remember { mutableStateOf(DualCameraMode.SINGLE) }
+    var pipPosition by remember { mutableStateOf(PiPPosition.TOP_RIGHT) }
+    var streamUrlSecond by remember { mutableStateOf("") }
+    var streamAudioUrl by remember { mutableStateOf("") }
+    var selectedRearLensId by remember { mutableStateOf("0") }
+
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
         uri?.let {
             val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -67,7 +74,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Configurações") },
+                title = { Text("Configurações Avançadas") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Voltar") }
                 },
@@ -91,11 +98,11 @@ fun SettingsScreen(
             Divider(Modifier.padding(vertical = 8.dp))
             
             if (captureMode == CaptureMode.LOCAL_RECORD) {
-                SectionTitle("Gravação Local")
+                SectionTitle("Aba Armazenamento (Local)")
                 EnumDropdown("Tipo de Gravação", LocalRecordType.entries, localRecordType) { viewModel.setLocalRecordType(it) }
                 
                 ListItem(
-                    headlineContent = { Text("Pasta de Destino") },
+                    headlineContent = { Text("Pasta de Destino (Storage Access)") },
                     supportingContent = { 
                         Text(outputDirUri?.let { Uri.parse(it).lastPathSegment } ?: "Galeria Pública (Padrão)")
                     },
@@ -108,14 +115,34 @@ fun SettingsScreen(
                 EnumDropdown("Formato de Áudio", AudioFormatOption.entries, audioFormat) { viewModel.setAudioFormat(it) }
                 EnumDropdown("Codec do Vídeo", VideoCodecOption.entries, videoCodec) { viewModel.setVideoCodec(it) }
             } else {
-                SectionTitle("Transmissão (Stream)")
+                SectionTitle("Aba Streaming (Multi-Stream)")
+                EnumDropdown("Modo de Envio", StreamMode.entries, streamMode) { streamMode = it }
                 EnumDropdown("Tipo de Transmissão", StreamType.entries, streamType) { viewModel.setStreamType(it) }
+                
                 OutlinedTextField(
                     value = streamUrl,
                     onValueChange = { viewModel.setStreamUrl(it) },
-                    label = { Text("URL de Transmissão (srt://, rtmp://)") },
+                    label = { Text("URL Principal (Vídeo ou Unificado)") },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
+
+                if (streamMode == StreamMode.SEPARATED_AUDIO || streamMode == StreamMode.MULTI_CAMERA) {
+                    OutlinedTextField(
+                        value = streamAudioUrl,
+                        onValueChange = { streamAudioUrl = it },
+                        label = { Text("URL de Áudio Separado") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    )
+                }
+
+                if (streamMode == StreamMode.MULTI_CAMERA) {
+                    OutlinedTextField(
+                        value = streamUrlSecond,
+                        onValueChange = { streamUrlSecond = it },
+                        label = { Text("URL Segunda Câmera (Vídeo)") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    )
+                }
                 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
                     Text("Habilitar Overlay de Chat", modifier = Modifier.weight(1f))
@@ -133,9 +160,22 @@ fun SettingsScreen(
             }
 
             Divider(Modifier.padding(vertical = 8.dp))
-            SectionTitle("Câmera Geral")
+            SectionTitle("Aba Câmeras (Dual Camera & PiP)")
+            EnumDropdown("Modo da Lente", DualCameraMode.entries, dualCameraMode) { dualCameraMode = it }
+            
+            if (dualCameraMode == DualCameraMode.PIP) {
+                EnumDropdown("Posição PiP", PiPPosition.entries, pipPosition) { pipPosition = it }
+            }
+
             EnumDropdown("Qualidade", VideoQualityOption.entries, videoQuality) { viewModel.setVideoQuality(it) }
             EnumDropdown("Câmera Padrão", CameraLensOption.entries, cameraLens) { viewModel.setCameraLens(it) }
+            
+            OutlinedTextField(
+                value = selectedRearLensId,
+                onValueChange = { selectedRearLensId = it },
+                label = { Text("ID da Lente Traseira (Camera2 API)") },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            )
 
             Divider(Modifier.padding(vertical = 8.dp))
             SectionTitle("Recursos Extras")
@@ -161,18 +201,6 @@ fun SettingsScreen(
                 Row {
                     OutlinedTextField(value = macro2Name, onValueChange = { viewModel.setMacro2Name(it) }, label = { Text("Nome") }, modifier = Modifier.weight(1f).padding(end = 4.dp))
                     OutlinedTextField(value = macro2Url, onValueChange = { viewModel.setMacro2Url(it) }, label = { Text("Webhook URL") }, modifier = Modifier.weight(2f))
-                }
-                
-                Text("Macro 3", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                Row {
-                    OutlinedTextField(value = macro3Name, onValueChange = { viewModel.setMacro3Name(it) }, label = { Text("Nome") }, modifier = Modifier.weight(1f).padding(end = 4.dp))
-                    OutlinedTextField(value = macro3Url, onValueChange = { viewModel.setMacro3Url(it) }, label = { Text("Webhook URL") }, modifier = Modifier.weight(2f))
-                }
-                
-                Text("Macro 4", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                Row {
-                    OutlinedTextField(value = macro4Name, onValueChange = { viewModel.setMacro4Name(it) }, label = { Text("Nome") }, modifier = Modifier.weight(1f).padding(end = 4.dp))
-                    OutlinedTextField(value = macro4Url, onValueChange = { viewModel.setMacro4Url(it) }, label = { Text("Webhook URL") }, modifier = Modifier.weight(2f))
                 }
             }
         }
@@ -214,6 +242,9 @@ fun <T : Enum<T>> EnumDropdown(
             is CaptureMode -> (selectedOption as CaptureMode).displayName
             is LocalRecordType -> (selectedOption as LocalRecordType).displayName
             is StreamType -> (selectedOption as StreamType).displayName
+            is StreamMode -> (selectedOption as StreamMode).displayName
+            is DualCameraMode -> (selectedOption as DualCameraMode).displayName
+            is PiPPosition -> (selectedOption as PiPPosition).displayName
             else -> selectedOption.name
         }
         
@@ -238,6 +269,9 @@ fun <T : Enum<T>> EnumDropdown(
                     is CaptureMode -> option.displayName
                     is LocalRecordType -> option.displayName
                     is StreamType -> option.displayName
+                    is StreamMode -> option.displayName
+                    is DualCameraMode -> option.displayName
+                    is PiPPosition -> option.displayName
                     else -> option.name
                 }
                 DropdownMenuItem(
