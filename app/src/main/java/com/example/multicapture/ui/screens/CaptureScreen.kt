@@ -126,8 +126,10 @@ fun CaptureScreen(
         if (isActionActive) {
             ContextCompat.startForegroundService(context, serviceIntent)
         } else {
+            // Se não está ativo, apenas enviamos um intent normal para parar, 
+            // sem forçar a regra de ForegroundServiceDidNotStartInTimeException.
             serviceIntent.action = "STOP_SERVICE"
-            ContextCompat.startForegroundService(context, serviceIntent)
+            context.startService(serviceIntent)
         }
     }
 
