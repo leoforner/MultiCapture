@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -101,8 +103,9 @@ fun CaptureScreen(
         }
     }
 
-    // Battery Saver Logic
+    // Battery Saver Logic & Foreground Service
     LaunchedEffect(isActionActive, enableBatterySaver) {
+        // Battery Saver
         activity?.window?.let { window ->
             val layoutParams = window.attributes
             if (isActionActive && enableBatterySaver) {
@@ -111,6 +114,15 @@ fun CaptureScreen(
                 layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
             }
             window.attributes = layoutParams
+        }
+        
+        // Foreground Service
+        val serviceIntent = android.content.Intent(context, com.example.multicapture.capture.CaptureService::class.java)
+        if (isActionActive) {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } else {
+            serviceIntent.action = "STOP_SERVICE"
+            ContextCompat.startForegroundService(context, serviceIntent)
         }
     }
 
@@ -165,7 +177,21 @@ fun CaptureScreen(
                             )
                         }
 
-                        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+                        AndroidView(
+                            factory = { previewView },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        captureViewModel.videoManager.setFocusAndMetering(
+                                            x = offset.x,
+                                            y = offset.y,
+                                            width = size.width.toFloat(),
+                                            height = size.height.toFloat()
+                                        )
+                                    }
+                                }
+                        )
                     } else {
                         // Streaming Mode View
                         AndroidView(
@@ -216,12 +242,15 @@ fun CaptureScreen(
                 }
 
                 // HUD Overlay
+                val audioLevel by captureViewModel.currentAudioLevel.collectAsState()
+                
                 HUDOverlay(
                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp), // Add padding for status bar if needed
                     batteryLevel = 100, // TODO: Implement real battery monitoring
                     isStreamHealthy = true, // TODO: Implement real stream health
                     bitrateMbps = 0.0f, // TODO: Implement real bitrate
-                    sessionTime = "00:00:00" // TODO: Implement real session timer
+                    sessionTime = "00:00:00", // TODO: Implement real session timer
+                    audioLevel = audioLevel
                 )
 
                 // Settings Button (Floating)

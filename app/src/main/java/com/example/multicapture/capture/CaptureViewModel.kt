@@ -10,6 +10,9 @@ import com.example.multicapture.settings.LocalRecordType
 import com.example.multicapture.settings.VideoCodecOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.lifecycle.viewModelScope
 import com.example.multicapture.macros.MacroManager
 
 class CaptureViewModel(application: Application) : AndroidViewModel(application) {
@@ -18,6 +21,9 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording = _isRecording.asStateFlow()
+    
+    private val _currentAudioLevel = MutableStateFlow(0.0f)
+    val currentAudioLevel = _currentAudioLevel.asStateFlow()
 
     fun startRecording(
         outputDirUri: String?,
@@ -57,9 +63,23 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
             
             if (canStartAudio) {
                 audioManager.startRecording(audioUri!!, audioFormat)
+                startAudioLevelMonitor()
             }
         } else {
             Toast.makeText(app, "Erro ao criar arquivos", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun startAudioLevelMonitor() {
+        viewModelScope.launch {
+            while (_isRecording.value) {
+                val maxAmp = audioManager.getMaxAmplitude()
+                // maxAmp is roughly 0 to 32767
+                val level = (maxAmp / 32767f).coerceIn(0f, 1f)
+                _currentAudioLevel.value = level
+                delay(100)
+            }
+            _currentAudioLevel.value = 0f
         }
     }
 

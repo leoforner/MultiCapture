@@ -17,6 +17,7 @@ import java.util.concurrent.Executors
 class VideoRecorderManager(private val context: Context) {
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
+    private var camera: androidx.camera.core.Camera? = null
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     fun bindCamera(
@@ -55,7 +56,18 @@ class VideoRecorderManager(private val context: Context) {
                 .setAspectRatio(aspectRatio)
                 .build()
 
-            videoCapture = VideoCapture.withOutput(recorder)
+            // Try to enable video stabilization if supported by the device
+            val videoCaptureBuilder = VideoCapture.Builder(recorder)
+            
+            // Note: CameraX 1.3.0+ has setVideoStabilizationEnabled. Since we use 1.3.1, we can call it.
+            // Using reflection or safe call to avoid crash if method is not found on older versions by accident, but we declared 1.3.1
+            try {
+                videoCaptureBuilder.setVideoStabilizationEnabled(true)
+            } catch (e: Exception) {
+                // Ignore if not supported
+            }
+            
+            videoCapture = videoCaptureBuilder.build()
 
             val cameraSelector = if (lensOption == CameraLensOption.FRONT) {
                 CameraSelector.DEFAULT_FRONT_CAMERA
@@ -75,7 +87,7 @@ class VideoRecorderManager(private val context: Context) {
                     // We will fallback to single for now to maintain stability in the demo
                 }
                 
-                cameraProvider.bindToLifecycle(
+                camera = cameraProvider.bindToLifecycle(
                     lifecycleOwner, cameraSelector, preview, videoCapture
                 )
             } catch (exc: Exception) {
@@ -122,6 +134,16 @@ class VideoRecorderManager(private val context: Context) {
     fun stopRecording() {
         recording?.stop()
         recording = null
+    }
+
+    fun setFocusAndMetering(x: Float, y: Float, width: Float, height: Float) {
+        val currentCamera = this.camera ?: return
+        val factory = androidx.camera.core.SurfaceOrientedMeteringPointFactory(width, height)
+        val point = factory.createPoint(x, y)
+        val action = androidx.camera.core.FocusMeteringAction.Builder(point, androidx.camera.core.FocusMeteringAction.FLAG_AF)
+            .addPoint(point, androidx.camera.core.FocusMeteringAction.FLAG_AE)
+            .build()
+        currentCamera.cameraControl.startFocusAndMetering(action)
     }
 
     fun shutdown() {
