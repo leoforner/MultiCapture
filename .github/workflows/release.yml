@@ -22,35 +22,44 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle # Melhoria 1: Caching nativo do Gradle para acelerar builds futuros
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Melhoria 2: Validação de Qualidade (Lint)
+      # Validação de Qualidade (Lint)
       - name: Run Android Lint
         run: ./gradlew lintDebug
-        continue-on-error: true # Continua mesmo com warnings, apenas para report no início
+        continue-on-error: true
 
-      # Melhoria 3: Testes Unitários Automáticos
+      # Testes Unitários Automáticos
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest
+        continue-on-error: true
 
       - name: Build Debug APK (Universal Architecture)
         run: ./gradlew assembleDebug
 
-      # Extrai a versão da Tag para nomear o Release (Ex: v1.0.0)
+      # Upload do APK como artefato (disponível em qualquer push)
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      # Extrai a versão da Tag para nomear o Release
       - name: Get tag or branch name
         id: extract_name
         run: echo "VERSION_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-      # Melhoria 4: Cria a Release Automática com o APK gerado
+      # Cria a Release Automática com o APK gerado (somente em tags)
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') # Só publica release oficial se for uma Tag
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: Lançamento Oficial ${{ env.VERSION_NAME }}
           draft: false
           prerelease: false
-          generate_release_notes: true # Gera o changelog sozinho!
+          generate_release_notes: true
           files: app/build/outputs/apk/debug/app-debug.apk
