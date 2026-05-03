@@ -171,10 +171,67 @@ fun SettingsScreen(
 
             Divider(Modifier.padding(vertical = 8.dp))
             SectionTitle("Aba Câmeras")
-            EnumDropdown("Modo da Lente", DualCameraMode.entries, dualCameraMode) { dualCameraMode = it }
+
+            val supportsConcurrentCameras by viewModel.supportsConcurrentCameras.collectAsState()
+
+            // Only show PiP if hardware supports concurrent cameras
+            val dualCameraModes = if (supportsConcurrentCameras) {
+                DualCameraMode.entries
+            } else {
+                listOf(DualCameraMode.SINGLE)
+            }
+            EnumDropdown("Modo da Lente", dualCameraModes, dualCameraMode) { dualCameraMode = it }
             
+            if (!supportsConcurrentCameras) {
+                Text(
+                    "⚠️ Seu dispositivo não suporta câmeras simultâneas (PiP).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
             if (dualCameraMode == DualCameraMode.PIP) {
                 EnumDropdown("Posição PiP", PiPPosition.entries, pipPosition) { pipPosition = it }
+                
+                // Second camera selector for PiP
+                var secondCameraExpanded by remember { mutableStateOf(false) }
+                var secondCameraId by remember { mutableStateOf<String?>(null) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = secondCameraExpanded,
+                    onExpandedChange = { secondCameraExpanded = it },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    val secondCamera = availableCameras.find { it.id == secondCameraId }
+                    val secondDisplay = secondCamera?.name ?: "Selecionar Segunda Câmera"
+                    
+                    OutlinedTextField(
+                        value = secondDisplay,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Segunda Câmera (PiP)") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = secondCameraExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = secondCameraExpanded,
+                        onDismissRequest = { secondCameraExpanded = false }
+                    ) {
+                        availableCameras
+                            .filter { it.id != selectedCameraId }
+                            .forEach { cam ->
+                                DropdownMenuItem(
+                                    text = { Text(cam.name) },
+                                    onClick = {
+                                        secondCameraId = cam.id
+                                        secondCameraExpanded = false
+                                    }
+                                )
+                            }
+                    }
+                }
             }
 
             EnumDropdown("Qualidade", VideoQualityOption.entries, videoQuality) { viewModel.setVideoQuality(it) }

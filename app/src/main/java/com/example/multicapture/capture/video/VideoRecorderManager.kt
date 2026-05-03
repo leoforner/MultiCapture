@@ -104,35 +104,101 @@ class VideoRecorderManager(private val context: Context) {
             
             videoCapture = videoCaptureBuilder.build()
 
-            val cameraSelector = if (selectedCameraId != null) {
-                // When a specific physical camera ID is selected, do NOT filter by lens facing
-                // because the system may group physical lenses (macro/ultrawide) under a
-                // logical camera that doesn't match the expected facing filter.
-                CameraSelector.Builder()
+            // Determine if selectedCameraId is a physical or logical camera
+            val cameraManager = context.getSystemService(android.hardware.camera2.CameraManager::class.java)
+            val logicalIds = cameraManager.cameraIdList.toSet()
+            val isPhysicalCamera = selectedCameraId != null && selectedCameraId !in logicalIds
+            
+            if (isPhysicalCamera && selectedCameraId != null) {
+                // Physical camera: find the parent logical camera and use Camera2Interop
+                // to force the physical lens
+                val parentLogicalId = findParentLogicalCamera(cameraManager, selectedCameraId)
+                
+                val cameraSelector = CameraSelector.Builder()
                     .addCameraFilter { cameraInfos ->
-                        val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
-                        exactMatch.ifEmpty { cameraInfos }
+                        val targetId = parentLogicalId ?: selectedCameraId
+                        val match = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == targetId }
+                        match.ifEmpty { cameraInfos }
                     }
                     .build()
+                
+                // Rebuild preview with physical camera ID set via Camera2Interop
+                val physicalPreviewBuilder = Preview.Builder()
+                    .setResolutionSelector(resolutionSelector)
+                
+                androidx.camera.camera2.interop.Camera2Interop.Extender(physicalPreviewBuilder)
+                    .setPhysicalCameraId(selectedCameraId)
+                
+                if (enableStabilization) {
+                    androidx.camera.camera2.interop.Camera2Interop.Extender(physicalPreviewBuilder)
+                        .setCaptureRequestOption(
+                            android.hardware.camera2.CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                            android.hardware.camera2.CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON
+                        )
+                }
+                
+                val physicalPreview = physicalPreviewBuilder.build().also {
+                    it.setSurfaceProvider(surfaceProvider)
+                }
+                
+                try {
+                    cameraProvider.unbindAll()
+                    camera = cameraProvider.bindToLifecycle(
+                        lifecycleOwner, cameraSelector, physicalPreview, videoCapture
+                    )
+                } catch (exc: Exception) {
+                    Log.e("VideoRecorderManager", "Physical camera binding failed, falling back", exc)
+                    // Fallback to default
+                    try {
+                        cameraProvider.unbindAll()
+                        camera = cameraProvider.bindToLifecycle(
+                            lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture
+                        )
+                    } catch (exc2: Exception) {
+                        Log.e("VideoRecorderManager", "Fallback binding also failed", exc2)
+                    }
+                }
             } else {
-                if (lensOption == CameraLensOption.FRONT) {
-                    CameraSelector.DEFAULT_FRONT_CAMERA
+                // Logical camera or default
+                val cameraSelector = if (selectedCameraId != null) {
+                    CameraSelector.Builder()
+                        .addCameraFilter { cameraInfos ->
+                            val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
+                            exactMatch.ifEmpty { cameraInfos }
+                        }
+                        .build()
                 } else {
-                    CameraSelector.DEFAULT_BACK_CAMERA
+                    if (lensOption == CameraLensOption.FRONT) {
+                        CameraSelector.DEFAULT_FRONT_CAMERA
+                    } else {
+                        CameraSelector.DEFAULT_BACK_CAMERA
+                    }
+                }
+                
+                try {
+                    cameraProvider.unbindAll()
+                    camera = cameraProvider.bindToLifecycle(
+                        lifecycleOwner, cameraSelector, preview, videoCapture
+                    )
+                } catch (exc: Exception) {
+                    Log.e("VideoRecorderManager", "Use case binding failed", exc)
                 }
             }
 
-            try {
-                cameraProvider.unbindAll()
-                
-                camera = cameraProvider.bindToLifecycle(
-                    lifecycleOwner, cameraSelector, preview, videoCapture
-                )
-            } catch (exc: Exception) {
-                Log.e("VideoRecorderManager", "Use case binding failed", exc)
-            }
-
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun findParentLogicalCamera(
+        cameraManager: android.hardware.camera2.CameraManager,
+        physicalCameraId: String
+    ): String? {
+        for (logicalId in cameraManager.cameraIdList) {
+            val chars = cameraManager.getCameraCharacteristics(logicalId)
+            if (chars.physicalCameraIds.contains(physicalCameraId)) {
+                return logicalId
+            }
+        }
+        return null
     }
 
     fun startRecording(

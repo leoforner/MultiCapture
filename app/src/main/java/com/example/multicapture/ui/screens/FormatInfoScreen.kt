@@ -23,6 +23,7 @@ fun FormatInfoScreen(
 ) {
     val availableCameras by settingsViewModel.availableCameras.collectAsState()
     val availableMicrophones by settingsViewModel.availableMicrophones.collectAsState()
+    val supportsConcurrentCameras by settingsViewModel.supportsConcurrentCameras.collectAsState()
 
     LaunchedEffect(Unit) {
         settingsViewModel.loadAvailableCameras()
@@ -49,6 +50,33 @@ fun FormatInfoScreen(
             // ---- CAMERAS ----
             Text("Câmeras Detectadas", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
+
+            // PiP Support status
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (supportsConcurrentCameras) 
+                        MaterialTheme.colorScheme.primaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = if (supportsConcurrentCameras)
+                        "✅ Seu dispositivo suporta câmeras simultâneas (Dual Camera / PiP)"
+                    else
+                        "❌ Seu dispositivo NÃO suporta câmeras simultâneas (PiP indisponível)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+
+            Text(
+                "Total: ${availableCameras.size} câmera(s) detectada(s)",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
 
             if (availableCameras.isEmpty()) {
                 Text("Nenhuma câmera detectada. Verifique as permissões.", style = MaterialTheme.typography.bodyMedium)

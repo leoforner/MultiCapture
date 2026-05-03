@@ -79,10 +79,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMacro4Name(name: String) = viewModelScope.launch { repository.setMacro4Name(name) }
     fun setMacro4Url(url: String) = viewModelScope.launch { repository.setMacro4Url(url) }
 
+    private val _supportsConcurrentCameras = MutableStateFlow(false)
+    val supportsConcurrentCameras = _supportsConcurrentCameras.asStateFlow()
+
     /**
      * Detects all cameras using Camera2 API natively.
-     * This discovers physical camera IDs that CameraX's ProcessCameraProvider hides
-     * (e.g. macro, ultrawide lenses grouped under a single logical camera).
+     * Discovers PHYSICAL camera IDs that are grouped under logical cameras
+     * (e.g. macro, ultrawide lenses on the Poco X6 Pro).
      */
     fun loadAvailableCameras() {
         val context = getApplication<Application>()
@@ -91,53 +94,95 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         try {
             val cameras = mutableListOf<CameraHardwareInfo>()
             
-            for (cameraId in cameraManager.cameraIdList) {
-                val characteristics = cameraManager.getCameraCharacteristics(cameraId)
-                val lensFacingInt = characteristics.get(CameraCharacteristics.LENS_FACING) ?: continue
-                val facingName = when (lensFacingInt) {
-                    CameraCharacteristics.LENS_FACING_FRONT -> "Frontal"
-                    CameraCharacteristics.LENS_FACING_BACK -> "Traseira"
-                    else -> "Externa"
+            for (logicalCameraId in cameraManager.cameraIdList) {
+                val logicalChars = cameraManager.getCameraCharacteristics(logicalCameraId)
+                val logicalFacing = logicalChars.get(CameraCharacteristics.LENS_FACING) ?: continue
+                
+                // Get physical camera IDs grouped under this logical camera
+                val physicalIds = logicalChars.physicalCameraIds
+                
+                if (physicalIds.isNotEmpty()) {
+                    // This logical camera has physical sub-cameras (macro, ultrawide, etc.)
+                    // Add each physical camera separately
+                    for (physicalId in physicalIds) {
+                        try {
+                            val physChars = cameraManager.getCameraCharacteristics(physicalId)
+                            val cam = buildCameraInfo(physicalId, physChars, logicalFacing, logicalCameraId)
+                            cameras.add(cam)
+                        } catch (_: Exception) {
+                            // Some physical IDs may not be directly accessible
+                        }
+                    }
+                    // Also add the logical camera itself as "Auto" option
+                    val logicalCam = buildCameraInfo(logicalCameraId, logicalChars, logicalFacing, null)
+                    cameras.add(0, logicalCam.copy(
+                        name = "Auto ${if (logicalFacing == CameraCharacteristics.LENS_FACING_FRONT) "(Frontal)" else "(Traseira)"} — ID $logicalCameraId",
+                        lensType = "Auto"
+                    ))
+                } else {
+                    // Simple camera with no physical sub-cameras
+                    val cam = buildCameraInfo(logicalCameraId, logicalChars, logicalFacing, null)
+                    cameras.add(cam)
                 }
-                
-                val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-                val primaryFocal = focalLengths?.firstOrNull() ?: 0f
-                
-                val lensType = classifyLens(primaryFocal, lensFacingInt)
-                
-                val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                val outputSizes = streamConfigMap?.getOutputSizes(android.graphics.ImageFormat.JPEG)
-                val resolutionsStr = outputSizes
-                    ?.sortedByDescending { it.width * it.height }
-                    ?.take(3)
-                    ?.joinToString(", ") { "${it.width}x${it.height}" }
-                    ?: "N/A"
-                
-                cameras.add(
-                    CameraHardwareInfo(
-                        id = cameraId,
-                        name = "$lensType ($facingName) — ID $cameraId",
-                        lensFacing = lensFacingInt,
-                        lensType = lensType,
-                        focalLength = primaryFocal,
-                        resolutions = resolutionsStr
-                    )
-                )
             }
             
             _availableCameras.value = cameras
-        } catch (e: Exception) {
+            
+            // Check concurrent camera support (needed for PiP)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val concurrentIds = cameraManager.concurrentCameraIds
+                _supportsConcurrentCameras.value = concurrentIds.any { it.size >= 2 }
+            }
+        } catch (_: Exception) {
             // Camera access error — device might not grant camera permission yet
         }
+    }
+    
+    private fun buildCameraInfo(
+        cameraId: String,
+        characteristics: CameraCharacteristics,
+        facing: Int,
+        parentLogicalId: String?
+    ): CameraHardwareInfo {
+        val facingName = when (facing) {
+            CameraCharacteristics.LENS_FACING_FRONT -> "Frontal"
+            CameraCharacteristics.LENS_FACING_BACK -> "Traseira"
+            else -> "Externa"
+        }
+        
+        val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+        val primaryFocal = focalLengths?.firstOrNull() ?: 0f
+        
+        val lensType = classifyLens(primaryFocal, facing)
+        
+        val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val outputSizes = streamConfigMap?.getOutputSizes(android.graphics.ImageFormat.JPEG)
+        val resolutionsStr = outputSizes
+            ?.sortedByDescending { it.width * it.height }
+            ?.take(3)
+            ?.joinToString(", ") { "${it.width}x${it.height}" }
+            ?: "N/A"
+        
+        val parentInfo = if (parentLogicalId != null) " [Lógica: $parentLogicalId]" else ""
+        
+        return CameraHardwareInfo(
+            id = cameraId,
+            name = "$lensType ($facingName) — ID $cameraId$parentInfo",
+            lensFacing = facing,
+            lensType = lensType,
+            focalLength = primaryFocal,
+            resolutions = resolutionsStr
+        )
     }
     
     private fun classifyLens(focalLength: Float, facing: Int): String {
         if (facing == CameraCharacteristics.LENS_FACING_FRONT) return "Frontal"
         return when {
-            focalLength < 2.0f -> "Ultrawide"
-            focalLength in 2.0f..4.0f -> "Principal"
-            focalLength in 4.0f..10.0f -> "Telefoto"
-            focalLength > 10.0f -> "Super Telefoto"
+            focalLength <= 0f -> "Desconhecida"
+            focalLength < 2.5f -> "Ultrawide"
+            focalLength in 2.5f..6.0f -> "Principal"
+            focalLength in 6.0f..15.0f -> "Telefoto"
+            focalLength > 15.0f -> "Super Telefoto"
             else -> "Principal"
         }
     }
