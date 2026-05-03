@@ -66,3 +66,9 @@ enum class PiPPosition(val displayName: String) {
     BOTTOM_RIGHT("Canto Inferior Direito"),
     BOTTOM_LEFT("Canto Inferior Esquerdo")
 }
+
+data class CameraHardwareInfo(
+    val id: String,
+    val name: String,
+    val lensFacing: Int
+)

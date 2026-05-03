@@ -12,7 +12,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +58,7 @@ fun CaptureScreen(
     val videoCodec by settingsViewModel.videoCodec.collectAsState()
     val videoAspectRatio by settingsViewModel.videoAspectRatio.collectAsState()
     val cameraLens by settingsViewModel.cameraLens.collectAsState()
+    val selectedCameraId by settingsViewModel.selectedCameraId.collectAsState()
     val outputDirUri by settingsViewModel.outputDirUri.collectAsState()
 
     val enableChatOverlay by settingsViewModel.enableChatOverlay.collectAsState()
@@ -74,6 +78,7 @@ fun CaptureScreen(
     // State
     val isRecordingLocal by captureViewModel.isRecording.collectAsState()
     var isStreaming by remember { mutableStateOf(false) }
+    var enableStabilization by remember { mutableStateOf(true) }
     val isActionActive = isRecordingLocal || isStreaming
 
     // Stream & Chat
@@ -133,6 +138,25 @@ fun CaptureScreen(
         }
     }
 
+    // Timer Logic
+    var sessionTimeSeconds by remember { mutableStateOf(0L) }
+    LaunchedEffect(isActionActive) {
+        if (isActionActive) {
+            sessionTimeSeconds = 0L
+            while (true) {
+                delay(1000)
+                sessionTimeSeconds++
+            }
+        } else {
+            sessionTimeSeconds = 0L
+        }
+    }
+    val formattedTime = String.format("%02d:%02d:%02d", 
+        sessionTimeSeconds / 3600, 
+        (sessionTimeSeconds % 3600) / 60, 
+        sessionTimeSeconds % 60
+    )
+
     DisposableEffect(Unit) {
         onDispose {
             if (isStreaming) {
@@ -165,15 +189,21 @@ fun CaptureScreen(
 
                 if (showCamera) {
                     if (captureMode == CaptureMode.LOCAL_RECORD) {
-                        val previewView = remember { PreviewView(context) }
+                        val previewView = remember { 
+                            PreviewView(context).apply {
+                                scaleType = PreviewView.ScaleType.FIT_CENTER
+                            }
+                        }
 
-                        LaunchedEffect(cameraLens, videoQuality, videoAspectRatio) {
+                        LaunchedEffect(cameraLens, videoQuality, videoAspectRatio, enableStabilization, selectedCameraId) {
                             captureViewModel.videoManager.bindCamera(
                                 lifecycleOwner = lifecycleOwner,
                                 surfaceProvider = previewView.surfaceProvider,
                                 lensOption = cameraLens,
                                 qualityOption = videoQuality,
-                                aspectOption = videoAspectRatio
+                                aspectOption = videoAspectRatio,
+                                selectedCameraId = selectedCameraId,
+                                enableStabilization = enableStabilization
                             )
                         }
 
@@ -243,13 +273,14 @@ fun CaptureScreen(
 
                 // HUD Overlay
                 val audioLevel by captureViewModel.currentAudioLevel.collectAsState()
+                val batteryLevel by captureViewModel.batteryLevel.collectAsState()
                 
                 HUDOverlay(
                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp), // Add padding for status bar if needed
-                    batteryLevel = 100, // TODO: Implement real battery monitoring
+                    batteryLevel = batteryLevel,
                     isStreamHealthy = true, // TODO: Implement real stream health
                     bitrateMbps = 0.0f, // TODO: Implement real bitrate
-                    sessionTime = "00:00:00", // TODO: Implement real session timer
+                    sessionTime = formattedTime,
                     audioLevel = audioLevel
                 )
 
@@ -258,11 +289,29 @@ fun CaptureScreen(
                     onClick = onNavigateToSettings,
                     enabled = !isActionActive,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 32.dp, end = 16.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 40.dp, end = 32.dp)
                         .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = "Configurações", tint = Color.White)
+                }
+
+                // Stabilization Toggle (Floating)
+                if (captureMode == CaptureMode.LOCAL_RECORD) {
+                    IconButton(
+                        onClick = { enableStabilization = !enableStabilization },
+                        enabled = !isActionActive,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(bottom = 40.dp, start = 32.dp)
+                            .background(if (enableStabilization) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    ) {
+                        Icon(
+                            if (enableStabilization) Icons.Default.CameraAlt else Icons.Default.Vibration, 
+                            contentDescription = "Estabilização", 
+                            tint = Color.White
+                        )
+                    }
                 }
 
                 // Macros

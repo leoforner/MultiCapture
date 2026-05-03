@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.video.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -25,7 +27,9 @@ class VideoRecorderManager(private val context: Context) {
         surfaceProvider: Preview.SurfaceProvider,
         lensOption: CameraLensOption,
         qualityOption: VideoQualityOption,
-        aspectOption: com.example.multicapture.settings.VideoAspectRatioOption = com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9
+        aspectOption: com.example.multicapture.settings.VideoAspectRatioOption = com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9,
+        selectedCameraId: String? = null,
+        enableStabilization: Boolean = true
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
@@ -60,19 +64,30 @@ class VideoRecorderManager(private val context: Context) {
             val videoCaptureBuilder = VideoCapture.Builder(recorder)
             
             // Note: CameraX 1.3.0+ has setVideoStabilizationEnabled. Since we use 1.3.1, we can call it.
-            // Using reflection or safe call to avoid crash if method is not found on older versions by accident, but we declared 1.3.1
             try {
-                videoCaptureBuilder.setVideoStabilizationEnabled(true)
+                videoCaptureBuilder.setVideoStabilizationEnabled(enableStabilization)
             } catch (e: Exception) {
                 // Ignore if not supported
             }
             
             videoCapture = videoCaptureBuilder.build()
 
-            val cameraSelector = if (lensOption == CameraLensOption.FRONT) {
-                CameraSelector.DEFAULT_FRONT_CAMERA
+            @OptIn(ExperimentalCamera2Interop::class)
+            val cameraSelector = if (selectedCameraId != null) {
+                val baseFacing = if (lensOption == CameraLensOption.FRONT) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+                CameraSelector.Builder()
+                    .requireLensFacing(baseFacing)
+                    .addCameraFilter { cameraInfos ->
+                        val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
+                        if (exactMatch.isNotEmpty()) exactMatch else cameraInfos
+                    }
+                    .build()
             } else {
-                CameraSelector.DEFAULT_BACK_CAMERA
+                if (lensOption == CameraLensOption.FRONT) {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                }
             }
 
             try {

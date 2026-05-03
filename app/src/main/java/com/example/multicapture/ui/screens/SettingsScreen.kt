@@ -62,7 +62,10 @@ fun SettingsScreen(
     var pipPosition by remember { mutableStateOf(PiPPosition.TOP_RIGHT) }
     var streamUrlSecond by remember { mutableStateOf("") }
     var streamAudioUrl by remember { mutableStateOf("") }
-    var selectedRearLensId by remember { mutableStateOf("0") }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadAvailableCameras()
+    }
 
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
         uri?.let {
@@ -172,12 +175,53 @@ fun SettingsScreen(
             EnumDropdown("Proporção de Vídeo", VideoAspectRatioOption.entries, videoAspectRatio) { viewModel.setVideoAspectRatio(it) }
             EnumDropdown("Câmera Padrão", CameraLensOption.entries, cameraLens) { viewModel.setCameraLens(it) }
             
-            OutlinedTextField(
-                value = selectedRearLensId,
-                onValueChange = { selectedRearLensId = it },
-                label = { Text("ID da Lente Traseira (Camera2 API)") },
+            Divider(Modifier.padding(vertical = 8.dp))
+            SectionTitle("Informações do Hardware e Lentes")
+            
+            val availableCameras by viewModel.availableCameras.collectAsState()
+            val selectedCameraId by viewModel.selectedCameraId.collectAsState()
+            
+            var cameraExpanded by remember { mutableStateOf(false) }
+            
+            ExposedDropdownMenuBox(
+                expanded = cameraExpanded,
+                onExpandedChange = { cameraExpanded = it },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            )
+            ) {
+                val currentCamera = availableCameras.find { it.id == selectedCameraId }
+                val display = currentCamera?.name ?: "Padrão do Sistema"
+                
+                OutlinedTextField(
+                    value = display,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Lente Física Específica (Opcional)") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cameraExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                
+                ExposedDropdownMenu(
+                    expanded = cameraExpanded,
+                    onDismissRequest = { cameraExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Padrão do Sistema") },
+                        onClick = {
+                            viewModel.setSelectedCameraId(null)
+                            cameraExpanded = false
+                        }
+                    )
+                    availableCameras.forEach { cam ->
+                        DropdownMenuItem(
+                            text = { Text(cam.name) },
+                            onClick = {
+                                viewModel.setSelectedCameraId(cam.id)
+                                cameraExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             Divider(Modifier.padding(vertical = 8.dp))
             SectionTitle("Recursos Extras")

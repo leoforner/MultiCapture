@@ -5,7 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.core.content.ContextCompat
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = SettingsRepository(application)
@@ -15,7 +20,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val videoCodec = repository.videoCodecFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoCodecOption.H264)
     val videoAspectRatio = repository.videoAspectRatioFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoAspectRatioOption.RATIO_16_9)
     val cameraLens = repository.cameraLensFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CameraLensOption.BACK)
+    val selectedCameraId = repository.selectedCameraIdFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val outputDirUri = repository.outputDirUriFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    
+    private val _availableCameras = MutableStateFlow<List<CameraHardwareInfo>>(emptyList())
+    val availableCameras = _availableCameras.asStateFlow()
 
     val captureMode = repository.captureModeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CaptureMode.LOCAL_RECORD)
     val localRecordType = repository.localRecordTypeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalRecordType.AUDIO_AND_VIDEO)
@@ -42,6 +51,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setVideoCodec(codec: VideoCodecOption) = viewModelScope.launch { repository.setVideoCodec(codec) }
     fun setVideoAspectRatio(ratio: VideoAspectRatioOption) = viewModelScope.launch { repository.setVideoAspectRatio(ratio) }
     fun setCameraLens(lens: CameraLensOption) = viewModelScope.launch { repository.setCameraLens(lens) }
+    fun setSelectedCameraId(id: String?) = viewModelScope.launch { repository.setSelectedCameraId(id) }
     fun setOutputDirUri(uri: String) = viewModelScope.launch { repository.setOutputDirUri(uri) }
 
     fun setCaptureMode(mode: CaptureMode) = viewModelScope.launch { repository.setCaptureMode(mode) }
@@ -61,4 +71,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMacro3Url(url: String) = viewModelScope.launch { repository.setMacro3Url(url) }
     fun setMacro4Name(name: String) = viewModelScope.launch { repository.setMacro4Name(name) }
     fun setMacro4Url(url: String) = viewModelScope.launch { repository.setMacro4Url(url) }
+
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    fun loadAvailableCameras() {
+        val context = getApplication<Application>()
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            try {
+                val provider = cameraProviderFuture.get()
+                val cameras = provider.availableCameraInfos.map { info ->
+                    val id = Camera2CameraInfo.from(info).cameraId
+                    val facing = if (info.lensFacing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT) "Frontal" else "Traseira"
+                    CameraHardwareInfo(id, "Câmera $id ($facing)", info.lensFacing)
+                }
+                _availableCameras.value = cameras
+            } catch (e: Exception) {
+                // Ignorar em caso de falha de carregamento
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
 }

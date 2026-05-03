@@ -1,6 +1,11 @@
 package com.example.multicapture.capture
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.example.multicapture.capture.audio.AudioRecorderManager
@@ -24,6 +29,23 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
     
     private val _currentAudioLevel = MutableStateFlow(0.0f)
     val currentAudioLevel = _currentAudioLevel.asStateFlow()
+
+    private val _batteryLevel = MutableStateFlow(100)
+    val batteryLevel = _batteryLevel.asStateFlow()
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level != -1 && scale != -1) {
+                _batteryLevel.value = (level * 100 / scale.toFloat()).toInt()
+            }
+        }
+    }
+
+    init {
+        application.registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
 
     fun startRecording(
         outputDirUri: String?,
@@ -94,6 +116,9 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {}
         videoManager.shutdown()
         audioManager.stopRecording()
     }
