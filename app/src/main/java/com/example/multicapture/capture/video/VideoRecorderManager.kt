@@ -8,8 +8,10 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import android.util.Size
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.video.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -38,15 +40,29 @@ class VideoRecorderManager(private val context: Context) {
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
-            val aspectRatioStrategy = when (aspectOption) {
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_4_3 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_1_1 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+            val resolutionSelector = when (aspectOption) {
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9 ->
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_4_3 ->
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_1_1 -> {
+                    val squareSize = when (qualityOption) {
+                        VideoQualityOption.UHD_4K -> Size(2160, 2160)
+                        VideoQualityOption.FHD_1080P -> Size(1080, 1080)
+                        VideoQualityOption.HD_720P -> Size(720, 720)
+                        VideoQualityOption.SD_480P -> Size(480, 480)
+                    }
+                    ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(squareSize, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
+                        )
+                        .build()
+                }
             }
-
-            val resolutionSelector = ResolutionSelector.Builder()
-                .setAspectRatioStrategy(aspectRatioStrategy)
-                .build()
 
             val previewBuilder = Preview.Builder()
                 .setResolutionSelector(resolutionSelector)
@@ -88,34 +104,101 @@ class VideoRecorderManager(private val context: Context) {
             
             videoCapture = videoCaptureBuilder.build()
 
-            val cameraSelector = if (selectedCameraId != null) {
-                val baseFacing = if (lensOption == CameraLensOption.FRONT) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
-                CameraSelector.Builder()
-                    .requireLensFacing(baseFacing)
+            // Determine if selectedCameraId is a physical or logical camera
+            val cameraManager = context.getSystemService(android.hardware.camera2.CameraManager::class.java)
+            val logicalIds = cameraManager.cameraIdList.toSet()
+            val isPhysicalCamera = selectedCameraId != null && selectedCameraId !in logicalIds
+            
+            if (isPhysicalCamera && selectedCameraId != null) {
+                // Physical camera: find the parent logical camera and use Camera2Interop
+                // to force the physical lens
+                val parentLogicalId = findParentLogicalCamera(cameraManager, selectedCameraId)
+                
+                val cameraSelector = CameraSelector.Builder()
                     .addCameraFilter { cameraInfos ->
-                        val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
-                        exactMatch.ifEmpty { cameraInfos }
+                        val targetId = parentLogicalId ?: selectedCameraId
+                        val match = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == targetId }
+                        match.ifEmpty { cameraInfos }
                     }
                     .build()
+                
+                // Rebuild preview with physical camera ID set via Camera2Interop
+                val physicalPreviewBuilder = Preview.Builder()
+                    .setResolutionSelector(resolutionSelector)
+                
+                androidx.camera.camera2.interop.Camera2Interop.Extender(physicalPreviewBuilder)
+                    .setPhysicalCameraId(selectedCameraId)
+                
+                if (enableStabilization) {
+                    androidx.camera.camera2.interop.Camera2Interop.Extender(physicalPreviewBuilder)
+                        .setCaptureRequestOption(
+                            android.hardware.camera2.CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                            android.hardware.camera2.CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON
+                        )
+                }
+                
+                val physicalPreview = physicalPreviewBuilder.build().also {
+                    it.setSurfaceProvider(surfaceProvider)
+                }
+                
+                try {
+                    cameraProvider.unbindAll()
+                    camera = cameraProvider.bindToLifecycle(
+                        lifecycleOwner, cameraSelector, physicalPreview, videoCapture
+                    )
+                } catch (exc: Exception) {
+                    Log.e("VideoRecorderManager", "Physical camera binding failed, falling back", exc)
+                    // Fallback to default
+                    try {
+                        cameraProvider.unbindAll()
+                        camera = cameraProvider.bindToLifecycle(
+                            lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture
+                        )
+                    } catch (exc2: Exception) {
+                        Log.e("VideoRecorderManager", "Fallback binding also failed", exc2)
+                    }
+                }
             } else {
-                if (lensOption == CameraLensOption.FRONT) {
-                    CameraSelector.DEFAULT_FRONT_CAMERA
+                // Logical camera or default
+                val cameraSelector = if (selectedCameraId != null) {
+                    CameraSelector.Builder()
+                        .addCameraFilter { cameraInfos ->
+                            val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
+                            exactMatch.ifEmpty { cameraInfos }
+                        }
+                        .build()
                 } else {
-                    CameraSelector.DEFAULT_BACK_CAMERA
+                    if (lensOption == CameraLensOption.FRONT) {
+                        CameraSelector.DEFAULT_FRONT_CAMERA
+                    } else {
+                        CameraSelector.DEFAULT_BACK_CAMERA
+                    }
+                }
+                
+                try {
+                    cameraProvider.unbindAll()
+                    camera = cameraProvider.bindToLifecycle(
+                        lifecycleOwner, cameraSelector, preview, videoCapture
+                    )
+                } catch (exc: Exception) {
+                    Log.e("VideoRecorderManager", "Use case binding failed", exc)
                 }
             }
 
-            try {
-                cameraProvider.unbindAll()
-                
-                camera = cameraProvider.bindToLifecycle(
-                    lifecycleOwner, cameraSelector, preview, videoCapture
-                )
-            } catch (exc: Exception) {
-                Log.e("VideoRecorderManager", "Use case binding failed", exc)
-            }
-
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    private fun findParentLogicalCamera(
+        cameraManager: android.hardware.camera2.CameraManager,
+        physicalCameraId: String
+    ): String? {
+        for (logicalId in cameraManager.cameraIdList) {
+            val chars = cameraManager.getCameraCharacteristics(logicalId)
+            if (chars.physicalCameraIds.contains(physicalCameraId)) {
+                return logicalId
+            }
+        }
+        return null
     }
 
     fun startRecording(

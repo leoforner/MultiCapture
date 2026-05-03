@@ -54,17 +54,23 @@ fun SettingsScreen(
     val videoQuality by viewModel.videoQuality.collectAsState()
     val videoCodec by viewModel.videoCodec.collectAsState()
     val videoAspectRatio by viewModel.videoAspectRatio.collectAsState()
-    val cameraLens by viewModel.cameraLens.collectAsState()
     val outputDirUri by viewModel.outputDirUri.collectAsState()
 
+    // Camera & microphone hardware
+    val availableCameras by viewModel.availableCameras.collectAsState()
+    val selectedCameraId by viewModel.selectedCameraId.collectAsState()
+    val availableMicrophones by viewModel.availableMicrophones.collectAsState()
+    val selectedMicrophoneId by viewModel.selectedMicrophoneId.collectAsState()
+
     var streamMode by remember { mutableStateOf(StreamMode.UNIFIED) }
-    var dualCameraMode by remember { mutableStateOf(DualCameraMode.SINGLE) }
+    val dualCameraMode by viewModel.dualCameraMode.collectAsState()
     var pipPosition by remember { mutableStateOf(PiPPosition.TOP_RIGHT) }
     var streamUrlSecond by remember { mutableStateOf("") }
     var streamAudioUrl by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.loadAvailableCameras()
+        viewModel.loadAvailableMicrophones()
     }
 
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -83,7 +89,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Voltar") }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToFormatInfo) { Icon(Icons.Default.Info, "Formatos") }
+                    IconButton(onClick = onNavigateToFormatInfo) { Icon(Icons.Default.Info, "Guia & Hardware") }
                 }
             )
         }
@@ -164,23 +170,74 @@ fun SettingsScreen(
             }
 
             Divider(Modifier.padding(vertical = 8.dp))
-            SectionTitle("Aba Câmeras (Dual Camera & PiP)")
-            EnumDropdown("Modo da Lente", DualCameraMode.entries, dualCameraMode) { dualCameraMode = it }
+            SectionTitle("Aba Câmeras")
+
+            val supportsConcurrentCameras by viewModel.supportsConcurrentCameras.collectAsState()
+
+            // Only show PiP if hardware supports concurrent cameras
+            val dualCameraModes = if (supportsConcurrentCameras) {
+                DualCameraMode.entries
+            } else {
+                listOf(DualCameraMode.SINGLE)
+            }
+            EnumDropdown("Modo da Lente", dualCameraModes, dualCameraMode) { viewModel.setDualCameraMode(it) }
             
+            if (!supportsConcurrentCameras) {
+                Text(
+                    "⚠️ Seu dispositivo não suporta câmeras simultâneas (PiP).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
             if (dualCameraMode == DualCameraMode.PIP) {
                 EnumDropdown("Posição PiP", PiPPosition.entries, pipPosition) { pipPosition = it }
+                
+                // Second camera selector for PiP
+                var secondCameraExpanded by remember { mutableStateOf(false) }
+                var secondCameraId by remember { mutableStateOf<String?>(null) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = secondCameraExpanded,
+                    onExpandedChange = { secondCameraExpanded = it },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    val secondCamera = availableCameras.find { it.id == secondCameraId }
+                    val secondDisplay = secondCamera?.name ?: "Selecionar Segunda Câmera"
+                    
+                    OutlinedTextField(
+                        value = secondDisplay,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Segunda Câmera (PiP)") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = secondCameraExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = secondCameraExpanded,
+                        onDismissRequest = { secondCameraExpanded = false }
+                    ) {
+                        availableCameras
+                            .filter { it.id != selectedCameraId }
+                            .forEach { cam ->
+                                DropdownMenuItem(
+                                    text = { Text(cam.name) },
+                                    onClick = {
+                                        secondCameraId = cam.id
+                                        secondCameraExpanded = false
+                                    }
+                                )
+                            }
+                    }
+                }
             }
 
             EnumDropdown("Qualidade", VideoQualityOption.entries, videoQuality) { viewModel.setVideoQuality(it) }
             EnumDropdown("Proporção de Vídeo", VideoAspectRatioOption.entries, videoAspectRatio) { viewModel.setVideoAspectRatio(it) }
-            EnumDropdown("Câmera Padrão", CameraLensOption.entries, cameraLens) { viewModel.setCameraLens(it) }
-            
-            Divider(Modifier.padding(vertical = 8.dp))
-            SectionTitle("Informações do Hardware e Lentes")
-            
-            val availableCameras by viewModel.availableCameras.collectAsState()
-            val selectedCameraId by viewModel.selectedCameraId.collectAsState()
-            
+
+            // Camera selection dropdown — lists all detected physical cameras
             var cameraExpanded by remember { mutableStateOf(false) }
             
             ExposedDropdownMenuBox(
@@ -189,13 +246,13 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
                 val currentCamera = availableCameras.find { it.id == selectedCameraId }
-                val display = currentCamera?.name ?: "Padrão do Sistema"
+                val display = currentCamera?.name ?: "Padrão do Sistema (Traseira)"
                 
                 OutlinedTextField(
                     value = display,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Lente Física Específica (Opcional)") },
+                    label = { Text("Câmera Ativa") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cameraExpanded) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
@@ -208,6 +265,7 @@ fun SettingsScreen(
                         text = { Text("Padrão do Sistema") },
                         onClick = {
                             viewModel.setSelectedCameraId(null)
+                            viewModel.setCameraLens(CameraLensOption.BACK)
                             cameraExpanded = false
                         }
                     )
@@ -216,7 +274,58 @@ fun SettingsScreen(
                             text = { Text(cam.name) },
                             onClick = {
                                 viewModel.setSelectedCameraId(cam.id)
+                                // Auto-detect lens facing
+                                val lens = if (cam.lensFacing == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT)
+                                    CameraLensOption.FRONT else CameraLensOption.BACK
+                                viewModel.setCameraLens(lens)
                                 cameraExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Divider(Modifier.padding(vertical = 8.dp))
+            SectionTitle("Microfone")
+            
+            // Microphone selection dropdown
+            var micExpanded by remember { mutableStateOf(false) }
+            
+            ExposedDropdownMenuBox(
+                expanded = micExpanded,
+                onExpandedChange = { micExpanded = it },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                val currentMic = availableMicrophones.find { it.id == selectedMicrophoneId }
+                val micDisplay = currentMic?.let { "${it.name} (${it.type})" } ?: "Padrão do Sistema"
+                
+                OutlinedTextField(
+                    value = micDisplay,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Microfone Ativo") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = micExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                
+                ExposedDropdownMenu(
+                    expanded = micExpanded,
+                    onDismissRequest = { micExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Padrão do Sistema") },
+                        onClick = {
+                            viewModel.setSelectedMicrophoneId(null)
+                            micExpanded = false
+                        }
+                    )
+                    availableMicrophones.forEach { mic ->
+                        val label = if (mic.isExternal) "⚡ ${mic.name} (${mic.type})" else "${mic.name} (${mic.type})"
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setSelectedMicrophoneId(mic.id)
+                                micExpanded = false
                             }
                         )
                     }

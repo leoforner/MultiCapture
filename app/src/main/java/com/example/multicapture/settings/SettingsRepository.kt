@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -20,8 +21,10 @@ class SettingsRepository(private val context: Context) {
         val VIDEO_CODEC_KEY = stringPreferencesKey("video_codec")
         val CAMERA_LENS_KEY = stringPreferencesKey("camera_lens")
         val SELECTED_CAMERA_ID_KEY = stringPreferencesKey("selected_camera_id")
+        val SELECTED_MICROPHONE_ID_KEY = intPreferencesKey("selected_microphone_id")
         val OUTPUT_DIR_URI_KEY = stringPreferencesKey("output_dir_uri")
         val VIDEO_ASPECT_RATIO_KEY = stringPreferencesKey("video_aspect_ratio")
+        val DUAL_CAMERA_MODE_KEY = stringPreferencesKey("dual_camera_mode")
 
         val CAPTURE_MODE_KEY = stringPreferencesKey("capture_mode")
         val LOCAL_RECORD_TYPE_KEY = stringPreferencesKey("local_record_type")
@@ -78,8 +81,18 @@ class SettingsRepository(private val context: Context) {
         prefs[SELECTED_CAMERA_ID_KEY]
     }
 
+    val selectedMicrophoneIdFlow: Flow<Int?> = context.dataStore.data.map { prefs ->
+        prefs[SELECTED_MICROPHONE_ID_KEY]
+    }
+
     val outputDirUriFlow: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[OUTPUT_DIR_URI_KEY]
+    }
+
+    val dualCameraModeFlow: Flow<DualCameraMode> = context.dataStore.data.map { prefs ->
+        prefs[DUAL_CAMERA_MODE_KEY]?.let { name ->
+            runCatching { DualCameraMode.valueOf(name) }.getOrDefault(DualCameraMode.SINGLE)
+        } ?: DualCameraMode.SINGLE
     }
 
     val captureModeFlow: Flow<CaptureMode> = context.dataStore.data.map { prefs ->
@@ -153,6 +166,16 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             if (id == null) prefs.remove(SELECTED_CAMERA_ID_KEY) else prefs[SELECTED_CAMERA_ID_KEY] = id
         }
+    }
+
+    suspend fun setSelectedMicrophoneId(id: Int?) {
+        context.dataStore.edit { prefs ->
+            if (id == null) prefs.remove(SELECTED_MICROPHONE_ID_KEY) else prefs[SELECTED_MICROPHONE_ID_KEY] = id
+        }
+    }
+
+    suspend fun setDualCameraMode(mode: DualCameraMode) {
+        context.dataStore.edit { it[DUAL_CAMERA_MODE_KEY] = mode.name }
     }
 
     suspend fun setOutputDirUri(uri: String) {

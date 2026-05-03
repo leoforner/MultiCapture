@@ -1,6 +1,11 @@
 package com.example.multicapture.settings
 
 import android.app.Application
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.util.Size
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -8,9 +13,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.camera2.interop.Camera2CameraInfo
-import androidx.core.content.ContextCompat
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = SettingsRepository(application)
@@ -21,10 +23,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val videoAspectRatio = repository.videoAspectRatioFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoAspectRatioOption.RATIO_16_9)
     val cameraLens = repository.cameraLensFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CameraLensOption.BACK)
     val selectedCameraId = repository.selectedCameraIdFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val selectedMicrophoneId = repository.selectedMicrophoneIdFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val outputDirUri = repository.outputDirUriFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val dualCameraMode = repository.dualCameraModeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DualCameraMode.SINGLE)
     
     private val _availableCameras = MutableStateFlow<List<CameraHardwareInfo>>(emptyList())
     val availableCameras = _availableCameras.asStateFlow()
+
+    private val _availableMicrophones = MutableStateFlow<List<MicrophoneInfo>>(emptyList())
+    val availableMicrophones = _availableMicrophones.asStateFlow()
 
     val captureMode = repository.captureModeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CaptureMode.LOCAL_RECORD)
     val localRecordType = repository.localRecordTypeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LocalRecordType.AUDIO_AND_VIDEO)
@@ -52,7 +59,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setVideoAspectRatio(ratio: VideoAspectRatioOption) = viewModelScope.launch { repository.setVideoAspectRatio(ratio) }
     fun setCameraLens(lens: CameraLensOption) = viewModelScope.launch { repository.setCameraLens(lens) }
     fun setSelectedCameraId(id: String?) = viewModelScope.launch { repository.setSelectedCameraId(id) }
+    fun setSelectedMicrophoneId(id: Int?) = viewModelScope.launch { repository.setSelectedMicrophoneId(id) }
     fun setOutputDirUri(uri: String) = viewModelScope.launch { repository.setOutputDirUri(uri) }
+    fun setDualCameraMode(mode: DualCameraMode) = viewModelScope.launch { repository.setDualCameraMode(mode) }
 
     fun setCaptureMode(mode: CaptureMode) = viewModelScope.launch { repository.setCaptureMode(mode) }
     fun setLocalRecordType(type: LocalRecordType) = viewModelScope.launch { repository.setLocalRecordType(type) }
@@ -72,22 +81,164 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMacro4Name(name: String) = viewModelScope.launch { repository.setMacro4Name(name) }
     fun setMacro4Url(url: String) = viewModelScope.launch { repository.setMacro4Url(url) }
 
-    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
+    private val _supportsConcurrentCameras = MutableStateFlow(false)
+    val supportsConcurrentCameras = _supportsConcurrentCameras.asStateFlow()
+
+    /**
+     * Detects all cameras using Camera2 API natively.
+     * Discovers PHYSICAL camera IDs that are grouped under logical cameras
+     * (e.g. macro, ultrawide lenses on the Poco X6 Pro).
+     */
     fun loadAvailableCameras() {
         val context = getApplication<Application>()
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            try {
-                val provider = cameraProviderFuture.get()
-                val cameras = provider.availableCameraInfos.map { info ->
-                    val id = Camera2CameraInfo.from(info).cameraId
-                    val facing = if (info.lensFacing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT) "Frontal" else "Traseira"
-                    CameraHardwareInfo(id, "Câmera $id ($facing)", info.lensFacing)
+        val cameraManager = context.getSystemService(CameraManager::class.java)
+        
+        try {
+            val cameras = mutableListOf<CameraHardwareInfo>()
+            val allLogicalIds = cameraManager.cameraIdList
+            android.util.Log.d("MultiCapture", "Camera IDs found: ${allLogicalIds.joinToString()}")
+            
+            for (logicalCameraId in allLogicalIds) {
+                val logicalChars = cameraManager.getCameraCharacteristics(logicalCameraId)
+                val logicalFacing = logicalChars.get(CameraCharacteristics.LENS_FACING) ?: continue
+                
+                // Get physical camera IDs grouped under this logical camera
+                val physicalIds = logicalChars.physicalCameraIds
+                android.util.Log.d("MultiCapture", "Camera $logicalCameraId: facing=$logicalFacing, physicalIds=$physicalIds")
+                
+                if (physicalIds.isNotEmpty()) {
+                    // This logical camera has physical sub-cameras (macro, ultrawide, etc.)
+                    for (physicalId in physicalIds) {
+                        try {
+                            val physChars = cameraManager.getCameraCharacteristics(physicalId)
+                            val cam = buildCameraInfo(physicalId, physChars, logicalFacing, logicalCameraId)
+                            cameras.add(cam)
+                        } catch (e: Exception) {
+                            android.util.Log.w("MultiCapture", "Cannot read physical camera $physicalId: ${e.message}")
+                        }
+                    }
+                    // Also add the logical camera itself as "Auto" option
+                    val logicalCam = buildCameraInfo(logicalCameraId, logicalChars, logicalFacing, null)
+                    cameras.add(0, logicalCam.copy(
+                        name = "Auto ${if (logicalFacing == CameraCharacteristics.LENS_FACING_FRONT) "(Frontal)" else "(Traseira)"} — ID $logicalCameraId",
+                        lensType = "Auto"
+                    ))
+                } else {
+                    // Simple camera with no physical sub-cameras
+                    // On some devices (like Poco), each lens IS a separate logical camera
+                    val cam = buildCameraInfo(logicalCameraId, logicalChars, logicalFacing, null)
+                    cameras.add(cam)
                 }
-                _availableCameras.value = cameras
-            } catch (e: Exception) {
-                // Ignorar em caso de falha de carregamento
             }
-        }, ContextCompat.getMainExecutor(context))
+            
+            _availableCameras.value = cameras
+            android.util.Log.d("MultiCapture", "Total cameras loaded: ${cameras.size}")
+            
+            // Check concurrent camera support (needed for PiP)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val concurrentIds = cameraManager.concurrentCameraIds
+                _supportsConcurrentCameras.value = concurrentIds.any { it.size >= 2 }
+                android.util.Log.d("MultiCapture", "Concurrent camera sets: $concurrentIds, supported=${_supportsConcurrentCameras.value}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MultiCapture", "Failed to load cameras", e)
+        }
+    }
+    
+    private fun buildCameraInfo(
+        cameraId: String,
+        characteristics: CameraCharacteristics,
+        facing: Int,
+        parentLogicalId: String?
+    ): CameraHardwareInfo {
+        val facingName = when (facing) {
+            CameraCharacteristics.LENS_FACING_FRONT -> "Frontal"
+            CameraCharacteristics.LENS_FACING_BACK -> "Traseira"
+            else -> "Externa"
+        }
+        
+        val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+        val primaryFocal = focalLengths?.firstOrNull() ?: 0f
+        
+        // Check minimum focus distance to detect macro lenses
+        val minFocusDist = characteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f
+        
+        val lensType = classifyLens(primaryFocal, facing, minFocusDist)
+        
+        val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val outputSizes = streamConfigMap?.getOutputSizes(android.graphics.ImageFormat.JPEG)
+        val resolutionsStr = outputSizes
+            ?.sortedByDescending { it.width * it.height }
+            ?.take(3)
+            ?.joinToString(", ") { "${it.width}x${it.height}" }
+            ?: "N/A"
+        
+        // Detect max resolution for classification hint
+        val maxRes = outputSizes?.maxByOrNull { it.width * it.height }
+        val megapixels = if (maxRes != null) "%.1f MP".format(maxRes.width * maxRes.height / 1_000_000f) else ""
+        
+        val parentInfo = if (parentLogicalId != null) " [Lógica: $parentLogicalId]" else ""
+        
+        android.util.Log.d("MultiCapture", "Camera $cameraId: focal=$primaryFocal, minFocus=$minFocusDist, type=$lensType, maxRes=$maxRes")
+        
+        return CameraHardwareInfo(
+            id = cameraId,
+            name = "$lensType ($facingName) $megapixels — ID $cameraId$parentInfo",
+            lensFacing = facing,
+            lensType = lensType,
+            focalLength = primaryFocal,
+            resolutions = resolutionsStr
+        )
+    }
+    
+    private fun classifyLens(focalLength: Float, facing: Int, minFocusDistance: Float): String {
+        if (facing == CameraCharacteristics.LENS_FACING_FRONT) return "Frontal"
+        
+        // Macro lenses have very high minimum focus distance (can focus very close)
+        // and typically lower resolution / small focal length
+        if (minFocusDistance > 20f && focalLength < 4f) return "Macro"
+        
+        return when {
+            focalLength <= 0f -> "Câmera ${"%.1f".format(minFocusDistance)}"
+            focalLength < 2.5f -> "Ultrawide"
+            focalLength in 2.5f..6.0f -> "Principal"
+            focalLength in 6.0f..15.0f -> "Telefoto"
+            focalLength > 15.0f -> "Super Telefoto"
+            else -> "Principal"
+        }
+    }
+
+    /**
+     * Detects all audio input devices including USB microphones and Bluetooth headsets.
+     */
+    fun loadAvailableMicrophones() {
+        val context = getApplication<Application>()
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+        val microphones = devices.map { device ->
+            val typeName = when (device.type) {
+                AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Microfone Interno"
+                AudioDeviceInfo.TYPE_USB_DEVICE -> "USB"
+                AudioDeviceInfo.TYPE_USB_HEADSET -> "Headset USB"
+                AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Headset com Fio"
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
+                AudioDeviceInfo.TYPE_USB_ACCESSORY -> "Acessório USB"
+                else -> "Outro (${device.type})"
+            }
+            val isExternal = device.type != AudioDeviceInfo.TYPE_BUILTIN_MIC
+            val productName = device.productName?.toString()?.ifBlank { null }
+            val displayName = productName ?: typeName
+            
+            MicrophoneInfo(
+                id = device.id,
+                name = displayName,
+                type = typeName,
+                isExternal = isExternal
+            )
+        }
+        
+        _availableMicrophones.value = microphones
     }
 }

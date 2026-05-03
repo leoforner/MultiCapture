@@ -70,5 +70,15 @@ enum class PiPPosition(val displayName: String) {
 data class CameraHardwareInfo(
     val id: String,
     val name: String,
-    val lensFacing: Int
+    val lensFacing: Int,
+    val lensType: String = "Principal",
+    val focalLength: Float = 0f,
+    val resolutions: String = ""
+)
+
+data class MicrophoneInfo(
+    val id: Int,
+    val name: String,
+    val type: String,
+    val isExternal: Boolean
 )

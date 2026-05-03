@@ -51,7 +51,8 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
         outputDirUri: String?,
         audioFormat: AudioFormatOption,
         videoCodec: VideoCodecOption,
-        recordType: LocalRecordType
+        recordType: LocalRecordType,
+        selectedMicrophoneId: Int? = null
     ) {
         val app = getApplication<Application>()
         
@@ -84,7 +85,7 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
             }
             
             if (canStartAudio) {
-                audioManager.startRecording(audioUri!!, audioFormat)
+                audioManager.startRecording(audioUri!!, audioFormat, selectedMicrophoneId)
                 startAudioLevelMonitor()
             }
         } else {

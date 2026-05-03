@@ -1,6 +1,7 @@
 package com.example.multicapture.capture.audio
 
 import android.content.Context
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -12,7 +13,7 @@ class AudioRecorderManager(private val context: Context) {
     private var recorder: MediaRecorder? = null
     private var pfd: ParcelFileDescriptor? = null
 
-    fun startRecording(fileUri: Uri, format: AudioFormatOption) {
+    fun startRecording(fileUri: Uri, format: AudioFormatOption, preferredDeviceId: Int? = null) {
         recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(context)
         } else {
@@ -38,6 +39,17 @@ class AudioRecorderManager(private val context: Context) {
             try {
                 pfd = context.contentResolver.openFileDescriptor(fileUri, "w")
                 setOutputFile(pfd?.fileDescriptor)
+                
+                // Route to preferred audio device (USB mic, Bluetooth, etc.)
+                if (preferredDeviceId != null) {
+                    val audioManager = context.getSystemService(AudioManager::class.java)
+                    val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                    val targetDevice = devices.find { it.id == preferredDeviceId }
+                    if (targetDevice != null) {
+                        setPreferredDevice(targetDevice)
+                    }
+                }
+                
                 prepare()
                 start()
             } catch (e: Exception) {

@@ -59,6 +59,7 @@ fun CaptureScreen(
     val videoAspectRatio by settingsViewModel.videoAspectRatio.collectAsState()
     val cameraLens by settingsViewModel.cameraLens.collectAsState()
     val selectedCameraId by settingsViewModel.selectedCameraId.collectAsState()
+    val selectedMicrophoneId by settingsViewModel.selectedMicrophoneId.collectAsState()
     val outputDirUri by settingsViewModel.outputDirUri.collectAsState()
 
     val enableChatOverlay by settingsViewModel.enableChatOverlay.collectAsState()
@@ -274,16 +275,14 @@ fun CaptureScreen(
                 }
 
                 // HUD Overlay
-                val audioLevel by captureViewModel.currentAudioLevel.collectAsState()
                 val batteryLevel by captureViewModel.batteryLevel.collectAsState()
                 
                 HUDOverlay(
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp), // Add padding for status bar if needed
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
                     batteryLevel = batteryLevel,
-                    isStreamHealthy = true, // TODO: Implement real stream health
-                    bitrateMbps = 0.0f, // TODO: Implement real bitrate
-                    sessionTime = formattedTime,
-                    audioLevel = audioLevel
+                    isStreamHealthy = true,
+                    bitrateMbps = 0.0f,
+                    sessionTime = formattedTime
                 )
 
                 // Settings Button (Floating)
@@ -359,7 +358,7 @@ fun CaptureScreen(
                                 if (isRecordingLocal) {
                                     captureViewModel.stopRecording()
                                 } else {
-                                    captureViewModel.startRecording(outputDirUri, audioFormat, videoCodec, localRecordType)
+                                    captureViewModel.startRecording(outputDirUri, audioFormat, videoCodec, localRecordType, selectedMicrophoneId)
                                 }
                             } else {
                                 // Streaming Mode
