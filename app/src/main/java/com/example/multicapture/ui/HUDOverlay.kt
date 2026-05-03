@@ -5,8 +5,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryFull
@@ -16,11 +17,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.multicapture.ui.components.GlassPanel
 import com.example.multicapture.ui.theme.GreenAccent
 import com.example.multicapture.ui.theme.RedAccent
+import com.example.multicapture.ui.theme.TextWhite
 import com.example.multicapture.ui.theme.TextWhite
 
 @Composable
@@ -29,7 +36,8 @@ fun HUDOverlay(
     batteryLevel: Int,
     isStreamHealthy: Boolean,
     bitrateMbps: Float,
-    sessionTime: String
+    sessionTime: String,
+    audioLevel: Float = 0.0f // 0.0 to 1.0
 ) {
     GlassPanel(
         modifier = modifier
@@ -60,12 +68,38 @@ fun HUDOverlay(
                 )
             }
 
-            // Session Time
-            Text(
-                text = sessionTime,
-                color = TextWhite,
-                style = MaterialTheme.typography.titleMedium
-            )
+            // Session Time & VU Meter
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Basic VU Meter (3 bars)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.height(16.dp).padding(end = 8.dp)
+                ) {
+                    val barCount = 5
+                    for (i in 0 until barCount) {
+                        val isActive = audioLevel > (i.toFloat() / barCount)
+                        val color = when {
+                            i >= 4 -> if (isActive) RedAccent else RedAccent.copy(alpha = 0.3f)
+                            i >= 3 -> if (isActive) Color(0xFFFFC107) else Color(0xFFFFC107).copy(alpha = 0.3f)
+                            else -> if (isActive) GreenAccent else GreenAccent.copy(alpha = 0.3f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(if (isActive) (6 + i * 2).dp else 4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(color)
+                        )
+                    }
+                }
+                
+                Text(
+                    text = sessionTime,
+                    color = TextWhite,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
 
             // Battery
             Row(verticalAlignment = Alignment.CenterVertically) {

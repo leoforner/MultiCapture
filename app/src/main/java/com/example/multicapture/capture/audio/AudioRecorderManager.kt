@@ -59,4 +59,12 @@ class AudioRecorderManager(private val context: Context) {
         } catch (e: Exception) {}
         pfd = null
     }
+
+    fun getMaxAmplitude(): Int {
+        return try {
+            recorder?.maxAmplitude ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
 }

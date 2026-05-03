@@ -1,6 +1,11 @@
 package com.example.multicapture.capture
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import com.example.multicapture.capture.audio.AudioRecorderManager
@@ -10,6 +15,9 @@ import com.example.multicapture.settings.LocalRecordType
 import com.example.multicapture.settings.VideoCodecOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.lifecycle.viewModelScope
 import com.example.multicapture.macros.MacroManager
 
 class CaptureViewModel(application: Application) : AndroidViewModel(application) {
@@ -18,6 +26,26 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording = _isRecording.asStateFlow()
+    
+    private val _currentAudioLevel = MutableStateFlow(0.0f)
+    val currentAudioLevel = _currentAudioLevel.asStateFlow()
+
+    private val _batteryLevel = MutableStateFlow(100)
+    val batteryLevel = _batteryLevel.asStateFlow()
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level != -1 && scale != -1) {
+                _batteryLevel.value = (level * 100 / scale.toFloat()).toInt()
+            }
+        }
+    }
+
+    init {
+        application.registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
 
     fun startRecording(
         outputDirUri: String?,
@@ -57,9 +85,23 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
             
             if (canStartAudio) {
                 audioManager.startRecording(audioUri!!, audioFormat)
+                startAudioLevelMonitor()
             }
         } else {
             Toast.makeText(app, "Erro ao criar arquivos", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun startAudioLevelMonitor() {
+        viewModelScope.launch {
+            while (_isRecording.value) {
+                val maxAmp = audioManager.getMaxAmplitude()
+                // maxAmp is roughly 0 to 32767
+                val level = (maxAmp / 32767f).coerceIn(0f, 1f)
+                _currentAudioLevel.value = level
+                delay(100)
+            }
+            _currentAudioLevel.value = 0f
         }
     }
 
@@ -74,6 +116,9 @@ class CaptureViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {}
         videoManager.shutdown()
         audioManager.stopRecording()
     }

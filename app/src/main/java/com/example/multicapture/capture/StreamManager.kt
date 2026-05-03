@@ -10,8 +10,12 @@ import com.pedro.library.view.OpenGlView
 import com.pedro.common.ConnectChecker
 
 import com.pedro.library.generic.GenericOnlyAudio
+import kotlinx.coroutines.*
 
 class StreamManager(private val context: Context, private val openGlView: OpenGlView) : ConnectChecker {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var lastVideoUrl: String? = null
+    private var isIntentionalDisconnect = false
     
     val genericCamera2: GenericCamera2 = GenericCamera2(openGlView, this)
     val genericCamera2Second: GenericCamera2 = GenericCamera2(context, this) // Headless for second stream
@@ -21,13 +25,38 @@ class StreamManager(private val context: Context, private val openGlView: OpenGl
     private var isSplitMode = false
     private var isMultiCameraMode = false
     
-    override fun onConnectionStarted(url: String) {}
+    override fun onConnectionStarted(url: String) { isIntentionalDisconnect = false }
     override fun onConnectionSuccess() {}
-    override fun onConnectionFailed(reason: String) {}
-    override fun onDisconnect() {}
+    
+    override fun onConnectionFailed(reason: String) {
+        handleAutoReconnect()
+    }
+    
+    override fun onDisconnect() {
+        if (!isIntentionalDisconnect) {
+            handleAutoReconnect()
+        }
+    }
+    
+    private fun handleAutoReconnect() {
+        val url = lastVideoUrl ?: return
+        scope.launch {
+            delay(3000) // Wait 3 seconds before reconnecting
+            if (!genericCamera2.isStreaming) {
+                genericCamera2.startStream(url)
+            }
+        }
+    }
+    
     override fun onAuthError() {}
     override fun onAuthSuccess() {}
-    override fun onNewBitrate(bitrate: Long) {}
+    
+    override fun onNewBitrate(bitrate: Long) {
+        // Adaptive Bitrate Básico: se o bitrate for reportado como crítico pelo RootEncoder,
+        // podemos reduzir o bitrate de video em tempo real.
+        // O RootEncoder mais recente fornece o BitrateManager, mas se quisermos manual:
+        // genericCamera2.setVideoBitrateOnFly(novoBitrate)
+    }
     
     fun prepare(streamType: StreamType, splitAudio: Boolean = false, multiCamera: Boolean = false, videoWidth: Int = 1280, videoHeight: Int = 720): Boolean {
         this.isSplitMode = splitAudio
@@ -65,6 +94,8 @@ class StreamManager(private val context: Context, private val openGlView: OpenGl
     }
 
     fun startStream(videoUrl: String, audioUrl: String? = null, videoUrlSecond: String? = null) {
+        lastVideoUrl = videoUrl
+        isIntentionalDisconnect = false
         if (!genericCamera2.isStreaming) {
             genericCamera2.startStream(videoUrl)
         }
@@ -77,6 +108,7 @@ class StreamManager(private val context: Context, private val openGlView: OpenGl
     }
     
     fun stopStream() {
+        isIntentionalDisconnect = true
         if (genericCamera2.isStreaming) {
             genericCamera2.stopStream()
         }
@@ -96,6 +128,15 @@ class StreamManager(private val context: Context, private val openGlView: OpenGl
         
         genericCamera2.glInterface.setFilter(filter)
         textOverlayFilter = filter
+    }
+    
+    fun setupWatermarkOverlay(bitmap: android.graphics.Bitmap) {
+        val watermarkFilter = com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRender()
+        watermarkFilter.setImage(bitmap)
+        watermarkFilter.setDefaultScale(openGlView.width, openGlView.height)
+        watermarkFilter.setPosition(80f, 80f) // Bottom-right corner ideally, or percentage
+        
+        genericCamera2.glInterface.setFilter(watermarkFilter)
     }
     
     fun updateChatText(text: String) {

@@ -8,15 +8,20 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -53,6 +58,7 @@ fun CaptureScreen(
     val videoCodec by settingsViewModel.videoCodec.collectAsState()
     val videoAspectRatio by settingsViewModel.videoAspectRatio.collectAsState()
     val cameraLens by settingsViewModel.cameraLens.collectAsState()
+    val selectedCameraId by settingsViewModel.selectedCameraId.collectAsState()
     val outputDirUri by settingsViewModel.outputDirUri.collectAsState()
 
     val enableChatOverlay by settingsViewModel.enableChatOverlay.collectAsState()
@@ -72,6 +78,7 @@ fun CaptureScreen(
     // State
     val isRecordingLocal by captureViewModel.isRecording.collectAsState()
     var isStreaming by remember { mutableStateOf(false) }
+    var enableStabilization by remember { mutableStateOf(true) }
     val isActionActive = isRecordingLocal || isStreaming
 
     // Stream & Chat
@@ -101,8 +108,9 @@ fun CaptureScreen(
         }
     }
 
-    // Battery Saver Logic
+    // Battery Saver Logic & Foreground Service
     LaunchedEffect(isActionActive, enableBatterySaver) {
+        // Battery Saver
         activity?.window?.let { window ->
             val layoutParams = window.attributes
             if (isActionActive && enableBatterySaver) {
@@ -112,6 +120,17 @@ fun CaptureScreen(
             }
             window.attributes = layoutParams
         }
+        
+        // Foreground Service
+        val serviceIntent = android.content.Intent(context, com.example.multicapture.capture.CaptureService::class.java)
+        if (isActionActive) {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } else {
+            // Se não está ativo, apenas enviamos um intent normal para parar, 
+            // sem forçar a regra de ForegroundServiceDidNotStartInTimeException.
+            serviceIntent.action = "STOP_SERVICE"
+            context.startService(serviceIntent)
+        }
     }
 
     // Chat Updates Logic
@@ -120,6 +139,25 @@ fun CaptureScreen(
             streamManager.updateChatText(chatMessages)
         }
     }
+
+    // Timer Logic
+    var sessionTimeSeconds by remember { mutableStateOf(0L) }
+    LaunchedEffect(isActionActive) {
+        if (isActionActive) {
+            sessionTimeSeconds = 0L
+            while (true) {
+                delay(1000)
+                sessionTimeSeconds++
+            }
+        } else {
+            sessionTimeSeconds = 0L
+        }
+    }
+    val formattedTime = String.format("%02d:%02d:%02d", 
+        sessionTimeSeconds / 3600, 
+        (sessionTimeSeconds % 3600) / 60, 
+        sessionTimeSeconds % 60
+    )
 
     DisposableEffect(Unit) {
         onDispose {
@@ -153,19 +191,39 @@ fun CaptureScreen(
 
                 if (showCamera) {
                     if (captureMode == CaptureMode.LOCAL_RECORD) {
-                        val previewView = remember { PreviewView(context) }
+                        val previewView = remember { 
+                            PreviewView(context).apply {
+                                scaleType = PreviewView.ScaleType.FIT_CENTER
+                            }
+                        }
 
-                        LaunchedEffect(cameraLens, videoQuality, videoAspectRatio) {
+                        LaunchedEffect(cameraLens, videoQuality, videoAspectRatio, enableStabilization, selectedCameraId) {
                             captureViewModel.videoManager.bindCamera(
                                 lifecycleOwner = lifecycleOwner,
                                 surfaceProvider = previewView.surfaceProvider,
                                 lensOption = cameraLens,
                                 qualityOption = videoQuality,
-                                aspectOption = videoAspectRatio
+                                aspectOption = videoAspectRatio,
+                                selectedCameraId = selectedCameraId,
+                                enableStabilization = enableStabilization
                             )
                         }
 
-                        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+                        AndroidView(
+                            factory = { previewView },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        captureViewModel.videoManager.setFocusAndMetering(
+                                            x = offset.x,
+                                            y = offset.y,
+                                            width = size.width.toFloat(),
+                                            height = size.height.toFloat()
+                                        )
+                                    }
+                                }
+                        )
                     } else {
                         // Streaming Mode View
                         AndroidView(
@@ -216,12 +274,16 @@ fun CaptureScreen(
                 }
 
                 // HUD Overlay
+                val audioLevel by captureViewModel.currentAudioLevel.collectAsState()
+                val batteryLevel by captureViewModel.batteryLevel.collectAsState()
+                
                 HUDOverlay(
                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp), // Add padding for status bar if needed
-                    batteryLevel = 100, // TODO: Implement real battery monitoring
+                    batteryLevel = batteryLevel,
                     isStreamHealthy = true, // TODO: Implement real stream health
                     bitrateMbps = 0.0f, // TODO: Implement real bitrate
-                    sessionTime = "00:00:00" // TODO: Implement real session timer
+                    sessionTime = formattedTime,
+                    audioLevel = audioLevel
                 )
 
                 // Settings Button (Floating)
@@ -229,11 +291,29 @@ fun CaptureScreen(
                     onClick = onNavigateToSettings,
                     enabled = !isActionActive,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 32.dp, end = 16.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 40.dp, end = 32.dp)
                         .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = "Configurações", tint = Color.White)
+                }
+
+                // Stabilization Toggle (Floating)
+                if (captureMode == CaptureMode.LOCAL_RECORD) {
+                    IconButton(
+                        onClick = { enableStabilization = !enableStabilization },
+                        enabled = !isActionActive,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(bottom = 40.dp, start = 32.dp)
+                            .background(if (enableStabilization) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    ) {
+                        Icon(
+                            if (enableStabilization) Icons.Default.CameraAlt else Icons.Default.Vibration, 
+                            contentDescription = "Estabilização", 
+                            tint = Color.White
+                        )
+                    }
                 }
 
                 // Macros
