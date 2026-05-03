@@ -63,7 +63,7 @@ fun SettingsScreen(
     val selectedMicrophoneId by viewModel.selectedMicrophoneId.collectAsState()
 
     var streamMode by remember { mutableStateOf(StreamMode.UNIFIED) }
-    var dualCameraMode by remember { mutableStateOf(DualCameraMode.SINGLE) }
+    val dualCameraMode by viewModel.dualCameraMode.collectAsState()
     var pipPosition by remember { mutableStateOf(PiPPosition.TOP_RIGHT) }
     var streamUrlSecond by remember { mutableStateOf("") }
     var streamAudioUrl by remember { mutableStateOf("") }
@@ -180,7 +180,7 @@ fun SettingsScreen(
             } else {
                 listOf(DualCameraMode.SINGLE)
             }
-            EnumDropdown("Modo da Lente", dualCameraModes, dualCameraMode) { dualCameraMode = it }
+            EnumDropdown("Modo da Lente", dualCameraModes, dualCameraMode) { viewModel.setDualCameraMode(it) }
             
             if (!supportsConcurrentCameras) {
                 Text(

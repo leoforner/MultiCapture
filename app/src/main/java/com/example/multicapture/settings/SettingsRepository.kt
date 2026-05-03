@@ -24,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val SELECTED_MICROPHONE_ID_KEY = intPreferencesKey("selected_microphone_id")
         val OUTPUT_DIR_URI_KEY = stringPreferencesKey("output_dir_uri")
         val VIDEO_ASPECT_RATIO_KEY = stringPreferencesKey("video_aspect_ratio")
+        val DUAL_CAMERA_MODE_KEY = stringPreferencesKey("dual_camera_mode")
 
         val CAPTURE_MODE_KEY = stringPreferencesKey("capture_mode")
         val LOCAL_RECORD_TYPE_KEY = stringPreferencesKey("local_record_type")
@@ -86,6 +87,12 @@ class SettingsRepository(private val context: Context) {
 
     val outputDirUriFlow: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[OUTPUT_DIR_URI_KEY]
+    }
+
+    val dualCameraModeFlow: Flow<DualCameraMode> = context.dataStore.data.map { prefs ->
+        prefs[DUAL_CAMERA_MODE_KEY]?.let { name ->
+            runCatching { DualCameraMode.valueOf(name) }.getOrDefault(DualCameraMode.SINGLE)
+        } ?: DualCameraMode.SINGLE
     }
 
     val captureModeFlow: Flow<CaptureMode> = context.dataStore.data.map { prefs ->
@@ -165,6 +172,10 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             if (id == null) prefs.remove(SELECTED_MICROPHONE_ID_KEY) else prefs[SELECTED_MICROPHONE_ID_KEY] = id
         }
+    }
+
+    suspend fun setDualCameraMode(mode: DualCameraMode) {
+        context.dataStore.edit { it[DUAL_CAMERA_MODE_KEY] = mode.name }
     }
 
     suspend fun setOutputDirUri(uri: String) {

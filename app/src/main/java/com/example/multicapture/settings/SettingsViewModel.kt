@@ -25,6 +25,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val selectedCameraId = repository.selectedCameraIdFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val selectedMicrophoneId = repository.selectedMicrophoneIdFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val outputDirUri = repository.outputDirUriFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val dualCameraMode = repository.dualCameraModeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DualCameraMode.SINGLE)
     
     private val _availableCameras = MutableStateFlow<List<CameraHardwareInfo>>(emptyList())
     val availableCameras = _availableCameras.asStateFlow()
@@ -60,6 +61,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSelectedCameraId(id: String?) = viewModelScope.launch { repository.setSelectedCameraId(id) }
     fun setSelectedMicrophoneId(id: Int?) = viewModelScope.launch { repository.setSelectedMicrophoneId(id) }
     fun setOutputDirUri(uri: String) = viewModelScope.launch { repository.setOutputDirUri(uri) }
+    fun setDualCameraMode(mode: DualCameraMode) = viewModelScope.launch { repository.setDualCameraMode(mode) }
 
     fun setCaptureMode(mode: CaptureMode) = viewModelScope.launch { repository.setCaptureMode(mode) }
     fun setLocalRecordType(type: LocalRecordType) = viewModelScope.launch { repository.setLocalRecordType(type) }
@@ -93,24 +95,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         
         try {
             val cameras = mutableListOf<CameraHardwareInfo>()
+            val allLogicalIds = cameraManager.cameraIdList
+            android.util.Log.d("MultiCapture", "Camera IDs found: ${allLogicalIds.joinToString()}")
             
-            for (logicalCameraId in cameraManager.cameraIdList) {
+            for (logicalCameraId in allLogicalIds) {
                 val logicalChars = cameraManager.getCameraCharacteristics(logicalCameraId)
                 val logicalFacing = logicalChars.get(CameraCharacteristics.LENS_FACING) ?: continue
                 
                 // Get physical camera IDs grouped under this logical camera
                 val physicalIds = logicalChars.physicalCameraIds
+                android.util.Log.d("MultiCapture", "Camera $logicalCameraId: facing=$logicalFacing, physicalIds=$physicalIds")
                 
                 if (physicalIds.isNotEmpty()) {
                     // This logical camera has physical sub-cameras (macro, ultrawide, etc.)
-                    // Add each physical camera separately
                     for (physicalId in physicalIds) {
                         try {
                             val physChars = cameraManager.getCameraCharacteristics(physicalId)
                             val cam = buildCameraInfo(physicalId, physChars, logicalFacing, logicalCameraId)
                             cameras.add(cam)
-                        } catch (_: Exception) {
-                            // Some physical IDs may not be directly accessible
+                        } catch (e: Exception) {
+                            android.util.Log.w("MultiCapture", "Cannot read physical camera $physicalId: ${e.message}")
                         }
                     }
                     // Also add the logical camera itself as "Auto" option
@@ -121,20 +125,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     ))
                 } else {
                     // Simple camera with no physical sub-cameras
+                    // On some devices (like Poco), each lens IS a separate logical camera
                     val cam = buildCameraInfo(logicalCameraId, logicalChars, logicalFacing, null)
                     cameras.add(cam)
                 }
             }
             
             _availableCameras.value = cameras
+            android.util.Log.d("MultiCapture", "Total cameras loaded: ${cameras.size}")
             
             // Check concurrent camera support (needed for PiP)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 val concurrentIds = cameraManager.concurrentCameraIds
                 _supportsConcurrentCameras.value = concurrentIds.any { it.size >= 2 }
+                android.util.Log.d("MultiCapture", "Concurrent camera sets: $concurrentIds, supported=${_supportsConcurrentCameras.value}")
             }
-        } catch (_: Exception) {
-            // Camera access error — device might not grant camera permission yet
+        } catch (e: Exception) {
+            android.util.Log.e("MultiCapture", "Failed to load cameras", e)
         }
     }
     
@@ -153,7 +160,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
         val primaryFocal = focalLengths?.firstOrNull() ?: 0f
         
-        val lensType = classifyLens(primaryFocal, facing)
+        // Check minimum focus distance to detect macro lenses
+        val minFocusDist = characteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f
+        
+        val lensType = classifyLens(primaryFocal, facing, minFocusDist)
         
         val streamConfigMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val outputSizes = streamConfigMap?.getOutputSizes(android.graphics.ImageFormat.JPEG)
@@ -163,11 +173,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             ?.joinToString(", ") { "${it.width}x${it.height}" }
             ?: "N/A"
         
+        // Detect max resolution for classification hint
+        val maxRes = outputSizes?.maxByOrNull { it.width * it.height }
+        val megapixels = if (maxRes != null) "%.1f MP".format(maxRes.width * maxRes.height / 1_000_000f) else ""
+        
         val parentInfo = if (parentLogicalId != null) " [Lógica: $parentLogicalId]" else ""
+        
+        android.util.Log.d("MultiCapture", "Camera $cameraId: focal=$primaryFocal, minFocus=$minFocusDist, type=$lensType, maxRes=$maxRes")
         
         return CameraHardwareInfo(
             id = cameraId,
-            name = "$lensType ($facingName) — ID $cameraId$parentInfo",
+            name = "$lensType ($facingName) $megapixels — ID $cameraId$parentInfo",
             lensFacing = facing,
             lensType = lensType,
             focalLength = primaryFocal,
@@ -175,10 +191,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         )
     }
     
-    private fun classifyLens(focalLength: Float, facing: Int): String {
+    private fun classifyLens(focalLength: Float, facing: Int, minFocusDistance: Float): String {
         if (facing == CameraCharacteristics.LENS_FACING_FRONT) return "Frontal"
+        
+        // Macro lenses have very high minimum focus distance (can focus very close)
+        // and typically lower resolution / small focal length
+        if (minFocusDistance > 20f && focalLength < 4f) return "Macro"
+        
         return when {
-            focalLength <= 0f -> "Desconhecida"
+            focalLength <= 0f -> "Câmera ${"%.1f".format(minFocusDistance)}"
             focalLength < 2.5f -> "Ultrawide"
             focalLength in 2.5f..6.0f -> "Principal"
             focalLength in 6.0f..15.0f -> "Telefoto"
