@@ -8,8 +8,10 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import android.util.Size
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.video.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -38,15 +40,29 @@ class VideoRecorderManager(private val context: Context) {
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
-            val aspectRatioStrategy = when (aspectOption) {
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_4_3 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_1_1 -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+            val resolutionSelector = when (aspectOption) {
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9 ->
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_4_3 ->
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_1_1 -> {
+                    val squareSize = when (qualityOption) {
+                        VideoQualityOption.UHD_4K -> Size(2160, 2160)
+                        VideoQualityOption.FHD_1080P -> Size(1080, 1080)
+                        VideoQualityOption.HD_720P -> Size(720, 720)
+                        VideoQualityOption.SD_480P -> Size(480, 480)
+                    }
+                    ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(squareSize, ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER)
+                        )
+                        .build()
+                }
             }
-
-            val resolutionSelector = ResolutionSelector.Builder()
-                .setAspectRatioStrategy(aspectRatioStrategy)
-                .build()
 
             val previewBuilder = Preview.Builder()
                 .setResolutionSelector(resolutionSelector)
@@ -89,9 +105,10 @@ class VideoRecorderManager(private val context: Context) {
             videoCapture = videoCaptureBuilder.build()
 
             val cameraSelector = if (selectedCameraId != null) {
-                val baseFacing = if (lensOption == CameraLensOption.FRONT) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+                // When a specific physical camera ID is selected, do NOT filter by lens facing
+                // because the system may group physical lenses (macro/ultrawide) under a
+                // logical camera that doesn't match the expected facing filter.
                 CameraSelector.Builder()
-                    .requireLensFacing(baseFacing)
                     .addCameraFilter { cameraInfos ->
                         val exactMatch = cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == selectedCameraId }
                         exactMatch.ifEmpty { cameraInfos }

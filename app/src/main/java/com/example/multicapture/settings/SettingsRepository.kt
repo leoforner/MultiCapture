@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         val VIDEO_CODEC_KEY = stringPreferencesKey("video_codec")
         val CAMERA_LENS_KEY = stringPreferencesKey("camera_lens")
         val SELECTED_CAMERA_ID_KEY = stringPreferencesKey("selected_camera_id")
+        val SELECTED_MICROPHONE_ID_KEY = intPreferencesKey("selected_microphone_id")
         val OUTPUT_DIR_URI_KEY = stringPreferencesKey("output_dir_uri")
         val VIDEO_ASPECT_RATIO_KEY = stringPreferencesKey("video_aspect_ratio")
 
@@ -76,6 +78,10 @@ class SettingsRepository(private val context: Context) {
 
     val selectedCameraIdFlow: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[SELECTED_CAMERA_ID_KEY]
+    }
+
+    val selectedMicrophoneIdFlow: Flow<Int?> = context.dataStore.data.map { prefs ->
+        prefs[SELECTED_MICROPHONE_ID_KEY]
     }
 
     val outputDirUriFlow: Flow<String?> = context.dataStore.data.map { prefs ->
@@ -152,6 +158,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSelectedCameraId(id: String?) {
         context.dataStore.edit { prefs ->
             if (id == null) prefs.remove(SELECTED_CAMERA_ID_KEY) else prefs[SELECTED_CAMERA_ID_KEY] = id
+        }
+    }
+
+    suspend fun setSelectedMicrophoneId(id: Int?) {
+        context.dataStore.edit { prefs ->
+            if (id == null) prefs.remove(SELECTED_MICROPHONE_ID_KEY) else prefs[SELECTED_MICROPHONE_ID_KEY] = id
         }
     }
 
