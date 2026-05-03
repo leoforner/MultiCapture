@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         val VIDEO_CODEC_KEY = stringPreferencesKey("video_codec")
         val CAMERA_LENS_KEY = stringPreferencesKey("camera_lens")
         val OUTPUT_DIR_URI_KEY = stringPreferencesKey("output_dir_uri")
+        val VIDEO_ASPECT_RATIO_KEY = stringPreferencesKey("video_aspect_ratio")
 
         val CAPTURE_MODE_KEY = stringPreferencesKey("capture_mode")
         val LOCAL_RECORD_TYPE_KEY = stringPreferencesKey("local_record_type")
@@ -58,6 +59,12 @@ class SettingsRepository(private val context: Context) {
         prefs[VIDEO_CODEC_KEY]?.let { name ->
             runCatching { VideoCodecOption.valueOf(name) }.getOrDefault(VideoCodecOption.H264)
         } ?: VideoCodecOption.H264
+    }
+
+    val videoAspectRatioFlow: Flow<VideoAspectRatioOption> = context.dataStore.data.map { prefs ->
+        prefs[VIDEO_ASPECT_RATIO_KEY]?.let { name ->
+            runCatching { VideoAspectRatioOption.valueOf(name) }.getOrDefault(VideoAspectRatioOption.RATIO_16_9)
+        } ?: VideoAspectRatioOption.RATIO_16_9
     }
 
     val cameraLensFlow: Flow<CameraLensOption> = context.dataStore.data.map { prefs ->
@@ -127,6 +134,10 @@ class SettingsRepository(private val context: Context) {
     
     suspend fun setVideoCodec(codec: VideoCodecOption) {
         context.dataStore.edit { it[VIDEO_CODEC_KEY] = codec.name }
+    }
+
+    suspend fun setVideoAspectRatio(ratio: VideoAspectRatioOption) {
+        context.dataStore.edit { it[VIDEO_ASPECT_RATIO_KEY] = ratio.name }
     }
 
     suspend fun setCameraLens(lens: CameraLensOption) {

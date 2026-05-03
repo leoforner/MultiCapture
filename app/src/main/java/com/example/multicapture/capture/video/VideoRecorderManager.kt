@@ -23,13 +23,21 @@ class VideoRecorderManager(private val context: Context) {
         lifecycleOwner: LifecycleOwner,
         surfaceProvider: Preview.SurfaceProvider,
         lensOption: CameraLensOption,
-        qualityOption: VideoQualityOption
+        qualityOption: VideoQualityOption,
+        aspectOption: com.example.multicapture.settings.VideoAspectRatioOption = com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
+            val aspectRatio = when (aspectOption) {
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_16_9 -> androidx.camera.core.AspectRatio.RATIO_16_9
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_4_3 -> androidx.camera.core.AspectRatio.RATIO_4_3
+                com.example.multicapture.settings.VideoAspectRatioOption.RATIO_1_1 -> androidx.camera.core.AspectRatio.RATIO_4_3 // Fallback, CameraX doesn't natively support 1:1 AspectRatio enum out of the box on older versions without custom ResolutionSelector
+            }
+
             val preview = Preview.Builder()
+                .setTargetAspectRatio(aspectRatio)
                 .build()
                 .also {
                     it.setSurfaceProvider(surfaceProvider)
@@ -44,6 +52,7 @@ class VideoRecorderManager(private val context: Context) {
 
             val recorder = Recorder.Builder()
                 .setQualitySelector(QualitySelector.from(quality))
+                .setAspectRatio(aspectRatio)
                 .build()
 
             videoCapture = VideoCapture.withOutput(recorder)
@@ -58,7 +67,7 @@ class VideoRecorderManager(private val context: Context) {
                 cameraProvider.unbindAll()
                 
                 // Concurrent Camera Check
-                val hasConcurrent = cameraProvider.availableConcurrentCameraSelectors.isNotEmpty()
+                val hasConcurrent = false // TODO: implement using cameraProvider.availableConcurrentCameraInfos when fully stable
                 if (hasConcurrent) {
                     // Try to bind concurrent front and back if required by settings
                     // val concurrentSelectors = cameraProvider.availableConcurrentCameraSelectors[0]

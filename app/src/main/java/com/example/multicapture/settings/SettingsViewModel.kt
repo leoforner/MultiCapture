@@ -13,6 +13,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val audioFormat = repository.audioFormatFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AudioFormatOption.AAC)
     val videoQuality = repository.videoQualityFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoQualityOption.FHD_1080P)
     val videoCodec = repository.videoCodecFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoCodecOption.H264)
+    val videoAspectRatio = repository.videoAspectRatioFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VideoAspectRatioOption.RATIO_16_9)
     val cameraLens = repository.cameraLensFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CameraLensOption.BACK)
     val outputDirUri = repository.outputDirUriFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -39,6 +40,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAudioFormat(format: AudioFormatOption) = viewModelScope.launch { repository.setAudioFormat(format) }
     fun setVideoQuality(quality: VideoQualityOption) = viewModelScope.launch { repository.setVideoQuality(quality) }
     fun setVideoCodec(codec: VideoCodecOption) = viewModelScope.launch { repository.setVideoCodec(codec) }
+    fun setVideoAspectRatio(ratio: VideoAspectRatioOption) = viewModelScope.launch { repository.setVideoAspectRatio(ratio) }
     fun setCameraLens(lens: CameraLensOption) = viewModelScope.launch { repository.setCameraLens(lens) }
     fun setOutputDirUri(uri: String) = viewModelScope.launch { repository.setOutputDirUri(uri) }
 

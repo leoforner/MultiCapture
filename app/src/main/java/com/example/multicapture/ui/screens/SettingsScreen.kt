@@ -53,6 +53,7 @@ fun SettingsScreen(
     val audioFormat by viewModel.audioFormat.collectAsState()
     val videoQuality by viewModel.videoQuality.collectAsState()
     val videoCodec by viewModel.videoCodec.collectAsState()
+    val videoAspectRatio by viewModel.videoAspectRatio.collectAsState()
     val cameraLens by viewModel.cameraLens.collectAsState()
     val outputDirUri by viewModel.outputDirUri.collectAsState()
 
@@ -168,6 +169,7 @@ fun SettingsScreen(
             }
 
             EnumDropdown("Qualidade", VideoQualityOption.entries, videoQuality) { viewModel.setVideoQuality(it) }
+            EnumDropdown("Proporção de Vídeo", VideoAspectRatioOption.entries, videoAspectRatio) { viewModel.setVideoAspectRatio(it) }
             EnumDropdown("Câmera Padrão", CameraLensOption.entries, cameraLens) { viewModel.setCameraLens(it) }
             
             OutlinedTextField(
@@ -238,6 +240,7 @@ fun <T : Enum<T>> EnumDropdown(
             is AudioFormatOption -> (selectedOption as AudioFormatOption).displayName
             is VideoQualityOption -> (selectedOption as VideoQualityOption).displayName
             is VideoCodecOption -> (selectedOption as VideoCodecOption).displayName
+            is VideoAspectRatioOption -> (selectedOption as VideoAspectRatioOption).displayName
             is CameraLensOption -> (selectedOption as CameraLensOption).displayName
             is CaptureMode -> (selectedOption as CaptureMode).displayName
             is LocalRecordType -> (selectedOption as LocalRecordType).displayName
@@ -265,6 +268,7 @@ fun <T : Enum<T>> EnumDropdown(
                     is AudioFormatOption -> option.displayName
                     is VideoQualityOption -> option.displayName
                     is VideoCodecOption -> option.displayName
+                    is VideoAspectRatioOption -> option.displayName
                     is CameraLensOption -> option.displayName
                     is CaptureMode -> option.displayName
                     is LocalRecordType -> option.displayName

@@ -16,6 +16,12 @@ enum class VideoQualityOption(val displayName: String) {
     SD_480P("480p (SD)")
 }
 
+enum class VideoAspectRatioOption(val displayName: String) {
+    RATIO_16_9("16:9 (Widescreen)"),
+    RATIO_4_3("4:3 (Padrão)"),
+    RATIO_1_1("1:1 (Quadrado)")
+}
+
 enum class VideoCodecOption(val displayName: String) {
     H264("H.264 / AVC"),
     H265("H.265 / HEVC")

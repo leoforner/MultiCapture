@@ -51,6 +51,7 @@ fun CaptureScreen(
     val audioFormat by settingsViewModel.audioFormat.collectAsState()
     val videoQuality by settingsViewModel.videoQuality.collectAsState()
     val videoCodec by settingsViewModel.videoCodec.collectAsState()
+    val videoAspectRatio by settingsViewModel.videoAspectRatio.collectAsState()
     val cameraLens by settingsViewModel.cameraLens.collectAsState()
     val outputDirUri by settingsViewModel.outputDirUri.collectAsState()
 
@@ -134,56 +135,71 @@ fun CaptureScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (captureMode == CaptureMode.STREAMING) "MultiCapture (Stream)" else "MultiCapture (Local)") },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings, enabled = !isActionActive) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configurações")
-                    }
-                }
-            )
-        }
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Black
     ) { padding ->
         if (hasPermissions) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    // Don't apply padding so it draws fullscreen
             ) {
                 // Camera View
-                if (captureMode == CaptureMode.LOCAL_RECORD) {
-                    val previewView = remember { PreviewView(context) }
+                val showCamera = if (captureMode == CaptureMode.LOCAL_RECORD) {
+                    localRecordType != com.example.multicapture.settings.LocalRecordType.AUDIO_ONLY
+                } else {
+                    streamType != com.example.multicapture.settings.StreamType.AUDIO_ONLY
+                }
 
-                    LaunchedEffect(cameraLens, videoQuality) {
-                        captureViewModel.videoManager.bindCamera(
-                            lifecycleOwner = lifecycleOwner,
-                            surfaceProvider = previewView.surfaceProvider,
-                            lensOption = cameraLens,
-                            qualityOption = videoQuality
+                if (showCamera) {
+                    if (captureMode == CaptureMode.LOCAL_RECORD) {
+                        val previewView = remember { PreviewView(context) }
+
+                        LaunchedEffect(cameraLens, videoQuality, videoAspectRatio) {
+                            captureViewModel.videoManager.bindCamera(
+                                lifecycleOwner = lifecycleOwner,
+                                surfaceProvider = previewView.surfaceProvider,
+                                lensOption = cameraLens,
+                                qualityOption = videoQuality,
+                                aspectOption = videoAspectRatio
+                            )
+                        }
+
+                        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+                    } else {
+                        // Streaming Mode View
+                        AndroidView(
+                            factory = { 
+                                openGlView.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+                                    override fun surfaceCreated(holder: android.view.SurfaceHolder) {
+                                        if (streamManager.prepare(streamType)) {
+                                            streamManager.startPreview()
+                                        }
+                                    }
+                                    override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
+                                    override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
+                                        streamManager.stopPreview()
+                                    }
+                                })
+                                openGlView 
+                            }, 
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-
-                    AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
                 } else {
-                    // Streaming Mode View
-                    AndroidView(
-                        factory = { 
-                            openGlView.holder.addCallback(object : android.view.SurfaceHolder.Callback {
-                                override fun surfaceCreated(holder: android.view.SurfaceHolder) {
-                                    if (streamManager.prepare(streamType)) {
-                                        streamManager.startPreview()
-                                    }
-                                }
-                                override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
-                                override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
-                                    streamManager.stopPreview()
-                                }
-                            })
-                            openGlView 
-                        }, 
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    // Audio Only Mode - Show a placeholder
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings, // Replace with Mic if possible, using Settings just as placeholder for now since we didn't import Mic
+                            contentDescription = "Audio Only",
+                            tint = Color.White,
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Text("Modo Somente Áudio (Câmera Desligada)", color = Color.White, modifier = Modifier.padding(top = 100.dp))
+                    }
                 }
 
                 // Chat Overlay (Local View)
@@ -201,12 +217,24 @@ fun CaptureScreen(
 
                 // HUD Overlay
                 HUDOverlay(
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp), // Add padding for status bar if needed
                     batteryLevel = 100, // TODO: Implement real battery monitoring
                     isStreamHealthy = true, // TODO: Implement real stream health
                     bitrateMbps = 0.0f, // TODO: Implement real bitrate
                     sessionTime = "00:00:00" // TODO: Implement real session timer
                 )
+
+                // Settings Button (Floating)
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    enabled = !isActionActive,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 32.dp, end = 16.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = "Configurações", tint = Color.White)
+                }
 
                 // Macros
                 if (enableMacros) {
